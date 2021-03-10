@@ -1,0 +1,3 @@
+for i in $(xinput list | grep G502 | cut -d '=' -f 2 | cut -d $'\t' -f 1); do
+   xinput set-prop $i "Device Accel Profile" 0
+done

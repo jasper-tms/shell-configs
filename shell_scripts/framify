@@ -1,0 +1,15 @@
+#!/bin/bash
+
+if ls frames/* &> /dev/null; then
+    echo "Files already exist at frames/*. Go delete them first. Aborting."
+    exit 1
+fi
+mkdir -p frames
+
+f=0
+e=${1##*.} #file extension (e.g. tif, jpg)
+for i in "$@"; do
+    echo "Linking $i -> frames/$f.$e"
+    ln -s ../"$i" frames/$f.$e
+    f=$(($f+1))
+done

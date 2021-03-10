@@ -1,0 +1,9 @@
+#TODO put a check for the user to confirm the list of webms to be converted
+for i in *webm; do
+    if [ ! -e "${i/.webm/.mp4}" ]; then
+        #TODO instead of hardcoding this 30fps value, pull it from the input file
+        ffmpeg -y -i "$i" -filter_complex "[0]reverse[r];[r][0]concat,setpts=N/30/TB" -vcodec libx264 "${i/.webm/.mp4}"
+    else
+        echo "$i not converted because ${i/.webm/.mp4} already exists"
+    fi
+done

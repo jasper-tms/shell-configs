@@ -1,0 +1,5 @@
+cd $(listAcquisitions vnc $1)
+cp skip.txt skip_fullSection.txt
+cp skip_render.txt skip_fullSection_render.txt
+cp intrasection/render_images.lst intrasection/render_images_fullSection.lst
+cp intrasection/align_images.lst intrasection/align_images_fullSection.lst

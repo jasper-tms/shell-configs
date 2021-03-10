@@ -1,0 +1,13 @@
+#TODO put a check for the user to confirm the list of webms to be converted
+for i in *webm; do
+    if [ ! -e "${i/.webm/.mp4}" ]; then
+        #some guy on the internet says this is a reliable way to get the frame count. Sure hope he's right!
+        frames=$(ffmpeg -i "$i" -map 0:v:0 -c copy -f null -y /dev/null 2>&1 | grep -Eo 'frame= *[0-9]+ *' | grep -Eo '[0-9]+' | tail -1)
+        half_frames=$((frames/2))
+
+        ffmpeg -y -i "$i" -filter_complex "[0]split[start][end]; [start]trim=end_frame=$half_frames, split[start_fwd][start_rev]; [start_rev] reverse [start_rev]; [end] trim=start_frame=$half_frames, setpts=PTS-STARTPTS, split [end_fwd][end_rev]; [end_rev] reverse [end_rev]; [end_fwd][end_rev][start_rev][start_fwd]concat=n=4" "${i/.webm/.mp4}"
+
+    else
+        echo "$i not converted because ${i/.webm/.mp4} already exists"
+    fi
+done

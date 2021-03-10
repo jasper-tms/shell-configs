@@ -1,0 +1,16 @@
+#!/bin/bash
+
+if [ "$(uname)" == "Linux" ]; then
+    if [ "$#" -gt 0 ]; then
+        $HOME/software/Fiji.app/ImageJ-linux64 $(realpath "$@")
+    else
+        $HOME/software/Fiji.app/ImageJ-linux64
+    fi
+elif [ "$(uname)" == "Darwin" ]; then
+    for i in "$@"; do
+       case "${i::1}" in
+          .|/|~)  /Applications/Fiji.app/Contents/MacOS/ImageJ-macosx "$i" ;;
+          *)      /Applications/Fiji.app/Contents/MacOS/ImageJ-macosx ./"$i" ;;
+       esac
+    done
+fi
