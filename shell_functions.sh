@@ -82,12 +82,25 @@ function readwatch {
 
 
 function noclock {
-    export PS1="${PS1/\[\\T\]/}"
+    case ${SHELL##*/} in
+        zsh)  export PROMPT="$(echo $PROMPT | sed 's/\[%\*\]//')";;  # TODO
+        bash) export PS1="${PS1/\[\\T\]/}" ;;
+    esac
+
 }
+#"
 
 function clock {
-    case $PS1 in
-        \[\\T\]*) echo "Clock already showing" ;;
-        *) export PS1="[\T]$PS1" ;;
+    case ${SHELL##*/} in
+        zsh)
+            case $PROMPT in
+                blah) echo "Clock already showing" ;;
+                *)    export PROMPT="[%*]$PROMPT" ;; #TODO
+            esac ;;
+        bash)
+            case $PS1 in
+                \[\\T\]*) echo "Clock already showing" ;;
+                *)        export PS1="[\T]$PS1" ;;
+            esac ;;
     esac
 }
