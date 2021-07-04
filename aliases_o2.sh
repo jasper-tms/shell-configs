@@ -32,6 +32,9 @@ alias cdvnc1='cd /n/groups/htem/temcagt/datasets/vnc1_r066'
 alias cdvnc1s='cd /n/groups/htem/temcagt/datasets/vnc1_r066/sections'
 alias mountvnc1='sshfs gandalf:/n/groups/htem/temcagt/datasets/vnc1_r066 /n/groups/htem/temcagt/datasets/vnc1_r066'
 
+alias cdrighty='cd /n/groups/htem/temcagt/datasets/righty_r1062'
+alias cdrightys='cd /n/groups/htem/temcagt/datasets/righty_r1062/sections'
+
 alias cdppc='cd /n/groups/htem/temcagt/datasets/ppc'
 alias mountppc='sshfs gandalf:/n/groups/htem/temcagt/datasets/ppc /n/groups/htem/temcagt/datasets/ppc'
 
