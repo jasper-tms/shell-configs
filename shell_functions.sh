@@ -14,7 +14,6 @@ function exit {
         if [ "${SHELL##*/}" = zsh ]; then
             read "input?WARNING: You are in a screen. Press enter to detatch, or type 'exit' again to exit: "
         elif [ "${SHELL##*/}" = bash ]; then
-            echo "This is bash"
             read -p "WARNING: You are in a screen. Press enter to detatch, or type 'exit' again to exit: " input
         else
             echo "WARNING: Not zsh or bash so I don't know how to ask for user input. Detatching."
