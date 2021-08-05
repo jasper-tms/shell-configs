@@ -1,16 +1,19 @@
-#!/bin/bash
+#!/bin/sh
+
+if [ -e "$HOME/software/Fiji.app" ]; then
+    fiji_dir="$HOME/software/Fiji.app"
+elif [ -e "$HOME/Fiji.app" ]; then
+    fiji_dir="$HOME/Fiji.app"
+elif [ -e "/Applications/Fiji.app" ]; then
+    fiji_dir="/Applications/Fiji.app"
+fi
 
 if [ "$(uname)" == "Linux" ]; then
     if [ "$#" -gt 0 ]; then
-        $HOME/software/Fiji.app/ImageJ-linux64 $(realpath "$@")
+        $fiji_dir/ImageJ-linux64 $(realpath "$@")
     else
-        $HOME/software/Fiji.app/ImageJ-linux64
+        $fiji_dir/ImageJ-linux64
     fi
 elif [ "$(uname)" == "Darwin" ]; then
-    for i in "$@"; do
-       case "${i::1}" in
-          .|/|~)  /Applications/Fiji.app/Contents/MacOS/ImageJ-macosx "$i" ;;
-          *)      /Applications/Fiji.app/Contents/MacOS/ImageJ-macosx ./"$i" ;;
-       esac
-    done
+    $fiji_dir/Contents/MacOS/ImageJ-macosx "$@"
 fi
