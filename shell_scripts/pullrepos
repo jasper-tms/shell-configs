@@ -1,0 +1,8 @@
+#!/bin/bash
+
+for repo in ~/repos/*/.git ~/repos/*/*/.git; do
+    echo $repo
+    cd ${repo%%.git}
+    git pull
+    echo
+done
