@@ -1,6 +1,20 @@
 alias vio2='vi ~/repos/jasper-tms/shell-configs/aliases_o2.sh'
 
 
+# SLURM stuff: squeue / srun / sshare / sacct
+alias sjobs="date; squeue -u jtm23 --format=%.8i%.55j%.11M%.2t%.7P%.8D%R"
+alias sjobswide="date; squeue -u jtm23 --format=%.8i%.70j%.11M%.2t%.7P%.8D%R"
+alias sjobsu="date; squeue --format=%.8i%.55j%.11M%.2t%.7P%.8D%R -u"
+
+alias interact="srun --pty -p interactive -t 0-12:00 --mem=2G bash"
+alias interactY="srun --pty -p interactive -t 0-12:00 --x11 --mem=2G bash"
+
+alias karma="sshare -U"
+alias karmareport="sacct --format=jobid%9,jobName%30,state,MaxRSS,ReqMem%6,Elapsed%13,Timelimit,NCPUS%4,NodeList%20 --units=G -u jtm23"
+alias karmareportwide="sacct --format=jobid%9,jobName%50,state,MaxRSS,ReqMem%6,Elapsed%13,Timelimit,NCPUS%4,NodeList%20 --units=G -u jtm23"
+alias karmareportu="sacct --format=jobid%9,jobName%30,state,MaxRSS,ReqMem%6,Elapsed%13,Timelimit,NCPUS%4,NodeList%20 --units=G -u"
+
+
 #Watch loops
 alias watchjobs="while true; do sjobs; sleep 10; done"
 alias watchzalign="while true; do grep iterations zalign.job.m*; lt grids; date; sleep 10; done"
