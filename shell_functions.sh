@@ -24,7 +24,7 @@ function exit {
         if [ "$input" = "exit" ]; then
             builtin exit
         elif [ -z "$input" ]; then
-            screen -d
+            screen -d $STY
         else
             exit
         fi
