@@ -31,6 +31,7 @@ fi
 #'Bookmarked' folders
 alias cdj='cd ~/Dropbox\ \(HMS\)/htem_team/Jasper'
 alias cddata='cd ~/Dropbox\ \(HMS\)/htem_team/Jasper/data'
+alias cdri='cd ~/Dropbox\ \(HMS\)/htem_team/Jasper/data/righty'
 alias cdmsv='cd ~/Dropbox\ \(HMS\)/htem_team/manuscripts/gtVNC_cell'
 alias cdmsx='cd ~/Dropbox\ \(HMS\)/htem_team/manuscripts/2020_NatNeuro_KuanPhelpsEtAl_XrayHolographicNanotomographyMethods'
 alias cdrepos='cd ~/repos'
