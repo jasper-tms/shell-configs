@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 if [ -e "$HOME/software/Fiji.app" ]; then
     fiji_dir="$HOME/software/Fiji.app"
@@ -8,12 +8,12 @@ elif [ -e "/Applications/Fiji.app" ]; then
     fiji_dir="/Applications/Fiji.app"
 fi
 
-if [ "$(uname)" == "Linux" ]; then
+if [ "$(uname)" = "Linux" ]; then
     if [ "$#" -gt 0 ]; then
         $fiji_dir/ImageJ-linux64 $(realpath "$@")
     else
         $fiji_dir/ImageJ-linux64
     fi
-elif [ "$(uname)" == "Darwin" ]; then
+elif [ "$(uname)" = "Darwin" ]; then
     $fiji_dir/Contents/MacOS/ImageJ-macosx "$@"
 fi
