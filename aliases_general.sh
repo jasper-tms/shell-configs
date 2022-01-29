@@ -41,6 +41,9 @@ if $IS_LINUX; then
     alias cdshortcuts='cd /usr/share/applications'
 fi
 
+#Provide useful default arguments for some programs
+alias ffmpeg="ffmpeg -hide_banner"
+alias ffprobe="ffprobe -hide_banner"
 
 #Check jobs running on o2 when not logged into o2
 if ! type squeue &> /dev/null; then
