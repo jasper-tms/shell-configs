@@ -1,5 +1,5 @@
 #!/bin/bash
-# bash script template by Jasper Phelps. Last update Oct 27, 2021
+# bash script template by Jasper Phelps. Last update Jan 30, 2022
 # Includes:
 #   show_help
 #   an easy-to-understand argument parsing block (that is, doesn't use getopts) with some examples given
@@ -44,14 +44,13 @@ while [ "$#" -gt 0 ]; do
         ;;
         *)  # Catch all other arguments
             if [ " ${1:0:1}" == " -" ]; then  # Ignore arguments starting with - that aren't explicitly listed above
-                if [ "$#" -eq 1 ]; then
-                    >&2 echo "ERROR: The only parameter is an unknown option. Aborting."
-                    show_help
-                    exit 1
-                fi
                 unknownOptions+=("$1")
                 >&2 echo "WARNING: Unknown option $1, ignoring"
             else
+                if [ -z "${1/* */}" ]; then
+                    >&2 echo "Spaces not allowed inside positional args: $1"
+                    exit 1
+                fi
                 positionalArgs+=("$1")  # Store arguments (other than ones recognized above) in order
             fi
             shift
@@ -59,7 +58,10 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 set -- "${positionalArgs[@]}"  # Set the positional arguments, now without any of the options/flags arguments
-echo $@
+if [ "$#" -eq 0 ]; then
+    show_help
+    exit 1
+fi
 
 #FAKEABLE COMMANDS GO HERE.
 fakeableCommands="rm mv cp mkdir ln chmod realpath sed exit sbatch"
