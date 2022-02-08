@@ -107,18 +107,18 @@ function clock {
 # Define realpath on MacOS if it is not present
 if $IS_MAC && ! which realpath > /dev/null; then
     function realpath {
-        path="$1"
+        filepath="$1"
         # First, if the file is a symlink, recursively resolve it
         # TODO figure out I want to handle broken links and then implement it
-        while [ -L "$path" ]; do
-            link_path=$(readlink $path)
+        while [ -L "$filepath" ]; do
+            link_path=$(readlink $filepath)
             case ${link_path:0:1} in
-                "/") path="$link_path" ;;
-                "~") path="$link_path" ;;
-                *) path="$(dirname "$path")/$link_path"
+                "/") filepath="$link_path" ;;
+                "~") filepath="$link_path" ;;
+                *) filepath="$(dirname "$filepath")/$link_path"
             esac
         done
         # Then resolve symlinks and .. and any other stuff in the folder path
-        echo "$(cd "$(dirname "$path")" && pwd -P)/$(basename "$1")"
+        echo "$(cd "$(dirname "$filepath")" && pwd -P)/$(basename "$1")"
     }
 fi
