@@ -47,7 +47,7 @@ alias ffprobe="ffprobe -hide_banner"
 
 #Check jobs running on o2 when not logged into o2
 if ! type squeue &> /dev/null; then
-    alias sjobs='ssh o2 "squeue -u jtm23 --format=%.8i%.55j%.11M%.2t%.7P%.8D%R"'
+    alias sjobs='ssh o2 "squeue -u \$USER --format=%.8i%.55j%.11M%.2t%.7P%.8D%R"'
 fi
 
 #Server login aliases. Must have ~/.ssh/config set up to recognize these names
