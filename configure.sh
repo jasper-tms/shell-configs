@@ -32,3 +32,12 @@ if [ -n "$O2_ALIASES" ]; then
     source $SHELL_CONFIGS_DIR/aliases_o2.sh
 fi
 
+if [ -n "$HTEM_ALIASES" ]; then
+    echo "Loading htem aliases"
+    source $SHELL_CONFIGS_DIR/aliases_htem.sh
+fi
+
+if [ -n "$NELY_ALIASES" ]; then
+    echo "Loading NeLy aliases"
+    source $SHELL_CONFIGS_DIR/aliases_nely.sh
+fi
