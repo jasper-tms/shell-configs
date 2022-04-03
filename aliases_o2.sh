@@ -2,9 +2,9 @@ alias vio2='vi ~/repos/jasper-tms/shell-configs/aliases_o2.sh'
 
 
 # SLURM stuff: squeue / srun / sshare / sacct
-alias sjobs="date; squeue -u $USER --format=%.8i%.55j%.11M%.2t%.7P%.8D%R"
-alias sjobswide="date; squeue -u $USER --format=%.8i%.70j%.11M%.2t%.7P%.8D%R"
-alias sjobsu="date; squeue --format=%.8i%.55j%.11M%.2t%.7P%.8D%R -u"
+alias sjobs="date; squeue -u $USER --format=\"%.8i%.45j %.8M %.2t %.6P %.4C %.5D %R\""
+alias sjobswide="date; squeue -u $USER --format=\"%.8i%.70j %.8M %.2t %.6P %.4C %.5D %R\""
+alias sjobsu="date; squeue --format=\"%.8i%.70j %.8M %.2t %.6P %.4C %.5D %R\" -u"
 
 alias interact="srun --pty -p interactive -t 0-12:00 --mem=2G bash"
 alias interactY="srun --pty -p interactive -t 0-12:00 --x11 --mem=2G bash"
