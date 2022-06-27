@@ -14,7 +14,7 @@ fi
 case ${SHELL##*/} in
     zsh)
     case "$TERM" in
-        # See https://misc.flogisoft.com/bash/tip_colors_and_formatting
+        # See https://zsh.sourceforge.io/Doc/Release/Prompt-Expansion.html
         xterm-color|*xterm-256color|screen) export PS1='[%*]%B%F{green}%m%f:%F{blue}%~%f%b$ ';;
         *) export PS1='[%*]%m:%/$ ';;
     esac
