@@ -22,8 +22,8 @@ case ${SHELL##*/} in
     bash)
     case "$TERM" in
         # See https://misc.flogisoft.com/bash/tip_colors_and_formatting
-        xterm-color|*xterm-256color|screen) export PS1='[\T]\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[0m\]$ ';;
-        *) export PS1='[\T]\u@\h:\w$ ';;
+        xterm-color|*xterm-256color|screen) export PS1='[\t]\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[0m\]$ ';;
+        *) export PS1='[\t]\u@\h:\w$ ';;
     esac
     ;;
 esac
