@@ -30,11 +30,8 @@ esac
 
 
 python_script_folders=\
-$HOME/repos/GridTape_VNC_paper:\
-$HOME/repos/GridTape_VNC_paper/figures_and_analysis/python_utilities:\
-$HOME/repos/GridTape_VNC_paper/template_registration_pipeline/register_EM_dataset_to_template:\
-$HOME/repos/jasper-tms/misc/miscpy:\
-$HOME/Dropbox\ \(HMS\)/htem_team/Jasper/data/vnc1/miscpy
+$HOME/repos/htem:\
+$HOME/repos/jasper-tms/misc/miscpy
 
 if [ -z "$PYTHONPATH" ]; then
     export PYTHONPATH=$python_script_folders
