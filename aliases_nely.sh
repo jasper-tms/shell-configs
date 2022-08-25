@@ -9,3 +9,7 @@ alias cdnas="cd $HOME/mnt/nelynas"
 j="$HOME/mnt/nelyserver/PHELPS_Jasper"
 alias cdj="if [ ! -e \"$j\" ]; then mntnely; fi; cd $j"
 alias oj="if [ ! -e \"$j\" ]; then mntnely; fi; o $j"
+
+alias cdpo="cd $HOME/'Dropbox (Personal)/Science/Postdoc - EPFL'"
+alias cdpres="cd $HOME/'Dropbox (Personal)/Science/Postdoc - EPFL/presentations'"
+alias cddata="cd $HOME/'Dropbox (Personal)/Science/Postdoc - EPFL/data'"
