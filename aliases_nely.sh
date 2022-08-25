@@ -5,6 +5,8 @@ alias mntnely="mount -t smbfs //phelps@sv1files.epfl.ch/Ramdya-Lab $HOME/mnt/nel
 alias cdnely="cd $HOME/mnt/nelyserver"
 alias mntnas="mount -t smbfs //phelps@upramdyanas1.epfl.ch/data ~/mnt/nelynas"
 alias cdnas="cd $HOME/mnt/nelynas"
+alias mntnas2="mount -t smbfs //phelps@upramdyanas1.epfl.ch/data2 ~/mnt/nelynas2"
+alias cdnas2="cd $HOME/mnt/nelynas2"
 
 j="$HOME/mnt/nelyserver/PHELPS_Jasper"
 alias cdj="if [ ! -e \"$j\" ]; then mntnely; fi; cd $j"
