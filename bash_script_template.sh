@@ -11,7 +11,7 @@ show_help () {
     >&2 echo "        and can continue here"
 }
 
-if [ "$#" -eq 0 ] || [ "$1" == "--help" ]; then
+if [ "$#" -eq 0 ] || [ "$1" = "--help" ]; then
     show_help
     exit 1
 fi
@@ -43,7 +43,7 @@ while [ "$#" -gt 0 ]; do
             shift; shift
         ;;
         *)  # Catch all other arguments
-            if [ " ${1:0:1}" == " -" ]; then  # Ignore arguments starting with - that aren't explicitly listed above
+            if [ " ${1:0:1}" = " -" ]; then  # Ignore arguments starting with - that aren't explicitly listed above
                 unknownOptions+=("$1")
                 >&2 echo "WARNING: Unknown option $1, ignoring"
             else
