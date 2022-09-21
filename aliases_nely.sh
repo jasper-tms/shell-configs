@@ -18,10 +18,11 @@ elif $IS_MAC; then
     alias cdnas2="cd $HOME/mnt/nely/nas2"
 fi
 
-j="$HOME/mnt/nelyserver/PHELPS_Jasper"
-alias cdj="if [ ! -e \"$j\" ]; then mntnely; fi; cd $j"
-alias oj="if [ ! -e \"$j\" ]; then mntnely; fi; o $j"
+j="$HOME/mnt/nely/labserver/PHELPS_Jasper"
+alias cdj="if [ ! -e \"$j\" ]; then mntlabserv; fi; cd $j"
+alias oj="if [ ! -e \"$j\" ]; then mntlabserv; fi; o $j"
 
 alias cdpo="cd $HOME/'Dropbox (Personal)/Science/Postdoc - EPFL'"
 alias cdpres="cd $HOME/'Dropbox (Personal)/Science/Postdoc - EPFL/presentations'"
-alias cddata="cd $HOME/'Dropbox (Personal)/Science/Postdoc - EPFL/data'"
+alias cdproj="cd $HOME/'Dropbox (Personal)/Science/Postdoc - EPFL/projects'"
+alias cdscape="cd $HOME/repos/jasper-tms/NeLy-experiments/build-a-scape"
