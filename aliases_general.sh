@@ -1,6 +1,6 @@
-alias vialiases='vi ~/repos/jasper-tms/shell-configs/aliases_general.sh'
+alias vialiases="vi $SHELL_CONFIGS_DIR/aliases_general.sh"
 
-alias cdconfigs='cd ~/repos/jasper-tms/shell-configs'
+alias cdconfigs="cd $SHELL_CONFIGS_DIR"
 
 #One line convenience functions
 alias vir='vi "$(ls -t | head -1)"'

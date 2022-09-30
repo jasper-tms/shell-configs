@@ -1,4 +1,4 @@
-alias vio2='vi ~/repos/jasper-tms/shell-configs/aliases_o2.sh'
+alias vio2="vi $SHELL_CONFIGS_DIR/aliases_o2.sh"
 
 
 # SLURM stuff: squeue / srun / sshare / sacct

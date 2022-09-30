@@ -1,4 +1,4 @@
-alias visynful='vi ~/repos/jasper-tms/shell-configs/aliases_synful.sh'
+alias visynful="vi $SHELL_CONFIGS_DIR/aliases_synful.sh"
 
 alias synful_env='source /n/groups/htem/users/tmn7/envs/ubuntu180402/bin/activate'
 
