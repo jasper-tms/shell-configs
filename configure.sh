@@ -20,24 +20,12 @@ export PATH=${SHELL_CONFIGS_DIR}/shell_scripts:$PATH
 
 
 #Aliases
-source $SHELL_CONFIGS_DIR/aliases_general.sh
-
-if [ -n "$SYNFUL_ALIASES" ]; then
-    echo "Loading synful aliases"
-    source $SHELL_CONFIGS_DIR/aliases_synful.sh
-fi
-
-if [ -n "$O2_ALIASES" ]; then
-    echo "Loading O2 aliases"
-    source $SHELL_CONFIGS_DIR/aliases_o2.sh
-fi
-
-if [ -n "$HTEM_ALIASES" ]; then
-    echo "Loading htem aliases"
-    source $SHELL_CONFIGS_DIR/aliases_htem.sh
-fi
-
-if [ -n "$NELY_ALIASES" ]; then
-    echo "Loading NeLy aliases"
-    source $SHELL_CONFIGS_DIR/aliases_nely.sh
-fi
+source $SHELL_CONFIGS_DIR/aliases/general.sh
+for name in $(echo $LOAD_ALIASES); do
+    if [ -e "$SHELL_CONFIGS_DIR/aliases/$name.sh" ]; then
+        echo "Loading $name aliases"
+        source "$SHELL_CONFIGS_DIR/aliases/$name.sh"
+    else
+        echo "No aliases file to load: $SHELL_CONFIGS_DIR/aliases/$name.sh"
+    fi
+done
