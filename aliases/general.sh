@@ -1,4 +1,4 @@
-alias vialiases="vi $SHELL_CONFIGS_DIR/aliases_general.sh"
+alias vialiases="vi $SHELL_CONFIGS_DIR/aliases/general.sh"
 
 alias cdconfigs="cd $SHELL_CONFIGS_DIR"
 
