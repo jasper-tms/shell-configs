@@ -5,8 +5,8 @@ alias cdconfigs="cd $SHELL_CONFIGS_DIR"
 #One line convenience functions
 alias vir='vi "$(ls -t | head -1)"'
 alias vio='vi "$(ls -t | tail -1)"'
-alias cdr='cd "$(ls -td */ | head -1)"'
-alias cdo='cd "$(ls -td */ | tail -1)"'
+alias cdr='cd "$(ls -td -- */ | head -1)"'
+alias cdo='cd "$(ls -td -- */ | tail -1)"'
 alias c='clear'
 if $IS_LINUX; then
     alias o='xdg-open'
@@ -19,12 +19,12 @@ alias lf='ls -F'
 alias la='ls -FA'
 alias ll='ls -Flh'
 alias lo='ls -Flht' #Oldest edit at the bottom
-alias lod='ls -lhtd */' #Oldest edit at the bottom, folders only
+alias lod='ls -lhtd -- */' #Oldest edit at the bottom, folders only
 alias lt='ls -Flhtr' #Most recent edit at the bottom
-alias ltd='ls -lhtrd */' #Most recent edit at the bottom, folders only
+alias ltd='ls -lhtrd -- */' #Most recent edit at the bottom, folders only
 if $IS_LINUX; then #-v options below are linux-specific
     alias lv='ls -Flhv' #sorts output numerically instead of by string order
-    alias lvd='ls -lhvd */' #sorts output numerically instead of by string order, folders only
+    alias lvd='ls -lhvd -- */' #sorts output numerically instead of by string order, folders only
 fi
 
 
