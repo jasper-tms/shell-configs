@@ -26,14 +26,10 @@ elif $IS_BASH; then
 fi
 
 
-python_script_folders=\
+MOREPYTHONPATHS=\
 $HOME/repos/htem:\
 $HOME/repos/jasper-tms/misc/miscpy
 
-if [ -z "$PYTHONPATH" ]; then
-    export PYTHONPATH=$python_script_folders
-else
-    export PYTHONPATH=$python_script_folders:$PYTHONPATH
-fi
+export PYTHONPATH=$MOREPYTHONPATHS${PYTHONPATH+:$PYTHONPATH}
 
-export PATH=$PATH:$python_script_folders
+export PATH=$PATH:$MOREPYTHONPATHS
