@@ -1,9 +1,21 @@
-#!/bin/sh
+# Configure shell settings
+# Works in zsh and bash, on Linux or Mac
 
-if [ "${SHELL##*/}" = zsh ]; then
-    export SHELL_CONFIGS_DIR="${0:A:h}"
-elif [ "${SHELL##*/}" = bash ]; then
+export IS_BASH=false
+export IS_ZSH=false
+SHELL_NAME=$(ps -cp "$$" -o command="")
+if [ "${SHELL_NAME: -3}" = zsh ]; then
+    export IS_ZSH=true
+elif [ "${SHELL_NAME: -4}" = bash ]; then
+    export IS_BASH=true
+else
+    echo "Could not determine shell!"
+fi
+
+if $IS_BASH; then
     export SHELL_CONFIGS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+elif $IS_ZSH; then
+    export SHELL_CONFIGS_DIR="${0:A:h}"
 fi
 
 

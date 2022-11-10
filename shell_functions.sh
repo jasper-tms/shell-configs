@@ -11,9 +11,9 @@ function exit {
         # If not in a 'screen', exit normally
         builtin exit
     else
-        if [ "${SHELL##*/}" = zsh ]; then
+        if $IS_ZSH; then
             read "input?WARNING: You are in a screen. Press enter to detatch, or type 'exit' again to exit: "
-        elif [ "${SHELL##*/}" = bash ]; then
+        elif $IS_BASH; then
             read -p "WARNING: You are in a screen. Press enter to detatch, or type 'exit' again to exit: " input
         else
             echo "WARNING: Not zsh or bash so I don't know how to ask for user input. Detatching."
@@ -32,17 +32,19 @@ function exit {
 }
 
 function shortpath {
-    case ${SHELL##*/} in
-        zsh)  export PROMPT="$(echo $PROMPT | sed 's/%~/%1~/g')";;
-        bash) export PS1="$(echo $PS1 | sed 's/\\w/\\W/g') " ;;
-    esac
+    if $IS_ZSH; then
+        export PROMPT="$(echo $PROMPT | sed 's/%~/%1~/g')"
+    elif $IS_BASH; then
+        export PS1="$(echo $PS1 | sed 's/\\w/\\W/g') "
+    fi
 }
 
 function longpath {
-    case ${SHELL##*/} in
-        zsh)  export PROMPT="$(echo $PROMPT | sed 's/%1~/%~/g')" ;;
-        bash) export PS1="$(echo $PS1 | sed 's/\\W/\\w/g') " ;;
-    esac
+    if $IS_ZSH; then
+         export PROMPT="$(echo $PROMPT | sed 's/%1~/%~/g')"
+    elif $IS_BASH; then
+        export PS1="$(echo $PS1 | sed 's/\\W/\\w/g') "
+    fi
 }
 
 function fullpath {
@@ -81,27 +83,27 @@ function readwatch {
 
 
 function noclock {
-    case ${SHELL##*/} in
-        zsh)  export PROMPT="$(echo $PROMPT | sed 's/\[%\*\]//')";;  # TODO
-        bash) export PS1="${PS1/\[\\T\]/}" ;;
-    esac
+    if $IS_ZSH; then
+        export PROMPT="$(echo $PROMPT | sed 's/\[%\*\]//')"  # TODO
+    elif $IS_BASH; then
+        export PS1="${PS1/\[\\T\]/}"
+    fi
 
 }
 #"
 
 function clock {
-    case ${SHELL##*/} in
-        zsh)
-            case $PROMPT in
-                blah) echo "Clock already showing" ;;
-                *)    export PROMPT="[%*]$PROMPT" ;; #TODO
-            esac ;;
-        bash)
-            case $PS1 in
-                \[\\T\]*) echo "Clock already showing" ;;
-                *)        export PS1="[\T]$PS1" ;;
-            esac ;;
-    esac
+    if $IS_ZSH; then
+        case $PROMPT in
+            blah) echo "Clock already showing" ;;
+            *)    export PROMPT="[%*]$PROMPT" ;; #TODO
+        esac
+    elif $IS_BASH; then
+        case $PS1 in
+            \[\\T\]*) echo "Clock already showing" ;;
+            *)        export PS1="[\T]$PS1" ;;
+        esac
+    fi
 }
 
 # Define realpath on MacOS if it is not present
