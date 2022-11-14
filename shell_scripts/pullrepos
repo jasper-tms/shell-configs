@@ -1,6 +1,7 @@
 #!/bin/bash
 
 for repo in ~/repos/*/.git ~/repos/*/*/.git; do
+    if [ ! -d "$repo" ]; then continue; fi
     echo $repo
     cd ${repo%%.git}
     git pull
