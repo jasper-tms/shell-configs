@@ -11,15 +11,13 @@ elif $IS_MAC; then
     alias mntnas="mount -t smbfs //phelps@upramdyanas1.epfl.ch/data $HOME/mnt/nas"
     alias mntnas2="mount -t smbfs //phelps@upramdyanas1.epfl.ch/data2 $HOME/mnt/nas2"
 fi
-alias cdls="cd /mnt/labserver"
-alias cdnas="cd /mnt/nas"
-alias cdnas2="cd /mnt/nas2"
+alias cdls="if [ ! -e \"/mnt/labserver/PHELPS_Jasper\" ]; then mntls; fi; cd /mnt/labserver/PHELPS_Jasper"
+alias cdnas="if [ ! -e \"/mnt/nas/JSP\" ]; then mntnas; fi; cd /mnt/nas/JSP"
+alias cdnas2="if [ ! -e \"/mnt/nas2/JSP\" ]; then mntnas2; fi; cd /mnt/nas2/JSP"
 
-j="/mnt/labserver/PHELPS_Jasper"
-alias cdj="if [ ! -e \"$j\" ]; then mntls; fi; cd $j"
-alias oj="if [ ! -e \"$j\" ]; then mntls; fi; o $j"
 
 alias cdpo="cd $HOME/'Dropbox (Personal)/Science/Postdoc - EPFL'"
+alias opo="o $HOME/'Dropbox (Personal)/Science/Postdoc - EPFL'"
 alias cdpres="cd $HOME/'Dropbox (Personal)/Science/Postdoc - EPFL/presentations'"
 alias cdproj="cd $HOME/'Dropbox (Personal)/Science/Postdoc - EPFL/projects'"
 alias cdscape="cd $HOME/repos/jasper-tms/NeLy-projects/build-a-scape"
