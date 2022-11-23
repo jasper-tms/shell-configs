@@ -1,13 +1,13 @@
 # Aliases for navigating filesystems and servers in the High Throughput Electron Microscopy lab (PI: Wei-Chung Lee)
 
 # Bookmarked folders
-alias cdphd='cd ~/Dropbox\ \(Personal\)/Science/Grad\ School\ -\ Harvard\ PiN/'
-#alias cdj='cd ~/Dropbox\ \(HMS\)/htem_team/Jasper'
-#alias cddata='cd ~/Dropbox\ \(HMS\)/htem_team/Jasper/data'
-#alias cdri='cd ~/Dropbox\ \(HMS\)/htem_team/Jasper/data/righty'
-#alias cdmsv='cd ~/Dropbox\ \(HMS\)/htem_team/manuscripts/gtVNC_cell'
-#alias cdmsx='cd ~/Dropbox\ \(HMS\)/htem_team/manuscripts/2020_NatNeuro_KuanPhelpsEtAl_XrayHolographicNanotomographyMethods'
-#alias cdtut='cd ~/Google\ Drive\ File\ Stream/My\ Drive/HTEM/Vnc1\ project/Tuthill-Lee\ collab'
+alias cdphd="cd $HOME/Dropbox*/Science/'Grad School - Harvard PiN'"
+#alias cdj="cd $HOME/'Dropbox (HMS)'/htem_team/Jasper"
+#alias cddata="cd $HOME/'Dropbox (HMS)'/htem_team/Jasper/data"
+#alias cdri="cd $HOME/'Dropbox (HMS)'/htem_team/Jasper/data/righty"
+#alias cdmsv="cd $HOME/'Dropbox (HMS)'/htem_team/manuscripts/gtVNC_cell"
+#alias cdmsx="cd $HOME/'Dropbox (HMS)'/htem_team/manuscripts/2020_NatNeuro_KuanPhelpsEtAl_XrayHolographicNanotomographyMethods"
+#alias cdtut="cd $HOME/'Google Drive File Stream/My Drive/HTEM/Vnc1 project/Tuthill-Lee collab'"
 
 #Server login aliases. Must have ~/.ssh/config set up to recognize these names
 alias temca='ssh -Y temca'

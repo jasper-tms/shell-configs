@@ -16,8 +16,8 @@ alias cdnas="if [ ! -e \"/mnt/nas/JSP\" ]; then mntnas; fi; cd /mnt/nas/JSP"
 alias cdnas2="if [ ! -e \"/mnt/nas2/JSP\" ]; then mntnas2; fi; cd /mnt/nas2/JSP"
 
 
-alias cdpo="cd $HOME/'Dropbox (Personal)/Science/Postdoc - EPFL'"
-alias opo="o $HOME/'Dropbox (Personal)/Science/Postdoc - EPFL'"
-alias cdpres="cd $HOME/'Dropbox (Personal)/Science/Postdoc - EPFL/presentations'"
-alias cdproj="cd $HOME/'Dropbox (Personal)/Science/Postdoc - EPFL/projects'"
+alias cdpo="cd $HOME/Dropbox*/Science/'Postdoc - EPFL'"
+alias opo="o $HOME/Dropbox*/Science/'Postdoc - EPFL'"
+alias cdpres="cd $HOME/Dropbox*/Science/'Postdoc - EPFL'/presentations"
+alias cdproj="cd $HOME/Dropbox*/Science/'Postdoc - EPFL'/projects"
 alias cdscape="cd $HOME/repos/jasper-tms/NeLy-projects/build-a-scape"

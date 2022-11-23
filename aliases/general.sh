@@ -30,7 +30,7 @@ fi
 
 #'Bookmarked' folders
 alias cdrepos='cd ~/repos'
-alias cdmedia='cd "$HOME/Dropbox (Personal)/Science/the_big_media_folder"'
+alias cdmedia="cd $HOME/Dropbox*/Science/the_big_media_folder"
 if $IS_LINUX; then
     alias cdmyshortcuts='cd ~/.local/share/applications'
     alias cdshortcuts='cd /usr/share/applications'
