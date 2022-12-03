@@ -1,6 +1,8 @@
-alias vialiases="vi $SHELL_CONFIGS_DIR/aliases/general.sh"
 
 alias cdconfigs="cd $SHELL_CONFIGS_DIR"
+alias cdaliases="cd $SHELL_CONFIGS_DIR/aliases"
+alias vialiases="vi $SHELL_CONFIGS_DIR/aliases/general.sh"
+
 
 #One line convenience functions
 alias vir='vi "$(ls -t | head -1)"'

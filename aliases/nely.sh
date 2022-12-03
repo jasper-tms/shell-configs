@@ -21,3 +21,6 @@ alias opo="o $HOME/Dropbox*/Science/'Postdoc - EPFL'"
 alias cdpres="cd $HOME/Dropbox*/Science/'Postdoc - EPFL'/presentations"
 alias cdproj="cd $HOME/Dropbox*/Science/'Postdoc - EPFL'/projects"
 alias cdscape="cd $HOME/repos/jasper-tms/NeLy-projects/build-a-scape"
+
+
+alias falco="ssh -Y falco"
