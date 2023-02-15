@@ -1,0 +1,15 @@
+[Desktop Entry]
+Version=1.0
+Name=Fiji
+GenericName=ImageJ
+X-GNOME-FullName=ImageJ
+Comment=Scientific Image Analysis
+Type=Application
+Categories=Education;Science;ImageProcessing;
+Exec=/home/phelps/software/Fiji.app/ImageJ-linux64 %F
+TryExec=/home/phelps/software/Fiji.app/ImageJ-linux64
+Terminal=false
+StartupNotify=true
+MimeType=image/*;
+Icon=/home/phelps/software/Fiji.app/images/icon.png
+StartupWMClass=net-imagej-launcher-ClassLauncher
