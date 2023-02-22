@@ -27,7 +27,6 @@ fi
 
 
 MOREPYTHONPATHS=\
-$HOME/repos/htem:\
 $HOME/repos/jasper-tms/misc/miscpy
 
 export PYTHONPATH=$MOREPYTHONPATHS${PYTHONPATH+:$PYTHONPATH}
