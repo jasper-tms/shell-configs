@@ -16,7 +16,7 @@ if $IS_MAC; then
 elif $IS_ZSH; then
     computername=%m
 elif $IS_BASH; then
-    computername=\h
+    computername='\h'
 fi
 if $IS_ZSH; then
     case "$TERM" in
