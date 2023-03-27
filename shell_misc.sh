@@ -11,17 +11,24 @@ if $IS_MAC; then
     export LSCOLORS=ExGxBxDxCxEgEdxbxgxcxd
 fi
 
+if $IS_MAC; then
+    computername=$(scutil --get LocalHostName)
+elif $IS_ZSH; then
+    computername=%m
+elif $IS_BASH; then
+    computername=\h
+fi
 if $IS_ZSH; then
     case "$TERM" in
         # See https://zsh.sourceforge.io/Doc/Release/Prompt-Expansion.html
-        xterm-color|*xterm-256color|screen) export PS1='[%*]%B%F{green}%m%f:%F{blue}%~%f%b$ ';;
-        *) export PS1='[%*]%m:%/$ ';;
+        xterm-color|*xterm-256color|screen) export PS1='[%*]%B%F{green}'$computername'%f:%F{blue}%~%f%b$ ';;
+        *) export PS1='[%*]'$computername':%/$ ';;
     esac
 elif $IS_BASH; then
     case "$TERM" in
         # See https://misc.flogisoft.com/bash/tip_colors_and_formatting
-        xterm-color|*xterm-256color|screen) export PS1='[\t]\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[0m\]$ ';;
-        *) export PS1='[\t]\u@\h:\w$ ';;
+        xterm-color|*xterm-256color|screen) export PS1='[\t]\[\033[01;32m\]\u@'$computername'\[\033[00m\]:\[\033[01;34m\]\w\[\033[0m\]$ ';;
+        *) export PS1='[\t]\u@'$computername':\w$ ';;
     esac
 fi
 
