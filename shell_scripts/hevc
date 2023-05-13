@@ -1,16 +1,53 @@
 #!/bin/bash
 
-if [ "$#" -gt 1 ]; then
-    crf="$2"
-else
-    crf=20
+args=""
+inputname=""
+fake=false
+crf=28
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        -f|--fake)
+            echo "Fake is true"
+            fake=true
+            shift
+            ;;
+        -q|--quality|-c|-crf|--crf)
+            crf="$2"
+            shift
+            shift
+            ;;
+        *)
+            if [ -e "$1" ]; then
+                if [ -n "$inputname" ]; then
+                    echo "Multiple inputs specified"
+                    exit 1
+                fi
+                inputname="$1"
+                shift
+            else
+                args="$args $1"
+                shift
+            fi
+            ;;
+    esac
+done
+
+outputname="${inputname%.*}.hevc-crf${crf}.mp4"
+
+if $fake; then
+    echo ffmpeg -i "$inputname" \
+                -c:v libx265 \
+                -tag:v hvc1 \
+                -colorspace bt2020nc -color_primaries bt2020 -color_trc arib-std-b67 \
+                -crf $crf \
+                $args \
+                "$outputname"
+    exit 0
 fi
-
-outputname="${1%.*}.ffmpeg.mp4"
-
-ffmpeg -i "$1" \
+ffmpeg -i "$inputname" \
        -c:v libx265 \
        -tag:v hvc1 \
-       -crf "$crf" \
        -colorspace bt2020nc -color_primaries bt2020 -color_trc arib-std-b67 \
+       -crf $crf \
+       $args \
        "$outputname"
