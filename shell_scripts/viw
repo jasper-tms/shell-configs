@@ -1,1 +1,1 @@
-vim "$(which $1)"
+vi "$(which $1)"
