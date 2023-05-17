@@ -1,5 +1,8 @@
 " To use this, make `~/.config/nvim/init.vim` a link to this file
 
+" For this plugins section to work, install vim-plug via the
+" instructions at: https://github.com/junegunn/vim-plug#installation
+" Then install the plugins by launching nvim and running :PlugInstall
 " Start plugins section
 call plug#begin('~/.config/nvim/plugged')
 Plug 'altercation/vim-colors-solarized'
