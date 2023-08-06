@@ -1,0 +1,47 @@
+#!/bin/bash
+
+args=""
+inputname=""
+fake=false
+q=1
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        -f|--fake)
+            echo "Fake is true"
+            fake=true
+            shift
+            ;;
+        -q|--quality|-c|-compression|--compression)
+            q="$2"
+            shift
+            shift
+            ;;
+        *)
+            if [ -e "$1" ]; then
+                if [ -n "$inputname" ]; then
+                    echo "Multiple inputs specified"
+                    exit 1
+                fi
+                inputname="$1"
+                shift
+            else
+                args="$args $1"
+                shift
+            fi
+            ;;
+    esac
+done
+
+outputname="${inputname%.*}.q${q}.jpg"
+
+if $fake; then
+    echo ffmpeg -i "$inputname" \
+                -q $q \
+                $args \
+                "$outputname"
+    exit 0
+fi
+ffmpeg -i "$inputname" \
+       -q $q \
+       $args \
+       "$outputname"
