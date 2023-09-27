@@ -7,7 +7,7 @@ if $IS_LINUX; then
     alias mntnas2="mount /mnt/nas2"
 elif $IS_MAC; then
     # Use samba mounts because I couldn't get cifs to work on Mac
-    alias mntls="mount -t smbfs //phelps@sv1files.epfl.ch/Ramdya-Lab $HOME/mnt/labserver"
+    alias mntls="mount -t smbfs //phelps@sv-nas1.rcp.epfl.ch/Ramdya-Lab $HOME/mnt/labserver"
     alias mntnas="mount -t smbfs //phelps@upramdyanas1.epfl.ch/data $HOME/mnt/nas"
     alias mntnas2="mount -t smbfs //phelps@upramdyanas1.epfl.ch/data2 $HOME/mnt/nas2"
 fi
