@@ -86,7 +86,7 @@ function noclock {
     if $IS_ZSH; then
         export PROMPT="$(echo $PROMPT | sed 's/\[%\*\]//')"  # TODO
     elif $IS_BASH; then
-        export PS1="${PS1/\[\\T\]/}"
+        export PS1="${PS1/\[\\t\]/}"
     fi
 
 }
@@ -100,8 +100,8 @@ function clock {
         esac
     elif $IS_BASH; then
         case $PS1 in
-            \[\\T\]*) echo "Clock already showing" ;;
-            *)        export PS1="[\T]$PS1" ;;
+            \[\\t\]*) echo "Clock already showing" ;;
+            *)        export PS1="[\t]$PS1" ;;
         esac
     fi
 }
