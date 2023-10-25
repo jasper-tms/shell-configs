@@ -12,8 +12,8 @@ import json
 from datetime import datetime, timezone
 now = datetime.now(timezone.utc)
 
-#try: from importlib import reload
-#except: pass
+try: from importlib import reload
+except: pass
 
 try:
     import numpy as np
