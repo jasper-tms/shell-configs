@@ -24,3 +24,4 @@ alias cdscape="cd $HOME/repos/jasper-tms/NeLy-projects/build-a-scape"
 
 
 alias falco="ssh -Y falco"
+alias thorax="ssh -Y thorax"
