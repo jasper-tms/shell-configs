@@ -9,6 +9,7 @@ Plug 'altercation/vim-colors-solarized'
 Plug 'morhetz/gruvbox'
 Plug 'crusoexia/vim-monokai'
 Plug 'joshdick/onedark.vim'
+Plug 'github/copilot.vim'
 call plug#end()
 " End plugins section
 
