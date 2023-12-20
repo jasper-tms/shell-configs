@@ -4,6 +4,12 @@ if $IS_LINUX; then
     if [ -f "$SHELL_CONFIGS_DIR/ls_colors.txt" ]; then
         eval $(dircolors -b $SHELL_CONFIGS_DIR/ls_colors.txt)
     fi
+
+    # Remap Caps Lock button to be a Ctrl button
+    setxkbmap -option ctrl:nocaps
+    # Provide a way out if the user is stuck in Caps Lock by allowing
+    # them to re-enable the Caps Lock key using a caps-only command
+    alias STOPYELLING="setxkbmap -option"
 fi
 if $IS_MAC; then
     # From https://apple.stackexchange.com/questions/33677/how-can-i-configure-mac-terminal-to-have-color-ls-output
