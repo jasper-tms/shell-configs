@@ -10,11 +10,18 @@ Plug 'morhetz/gruvbox'
 Plug 'crusoexia/vim-monokai'
 Plug 'joshdick/onedark.vim'
 Plug 'github/copilot.vim'
+Plug 'dense-analysis/ale'
 call plug#end()
+let g:ale_linters = {
+    \ 'python': ['flake8'],
+    \ }
+let g:ale_python_flake8_executable = expand('~/.virtualenvs/neovim-plugins/bin/flake8')
+let g:ale_python_flake8_options = '--config ' . expand('~/repos/jasper-tms/shell-configs/neovim/flake8-settings')
+
 " End plugins section
 
 " Set colorscheme
-let g:solarized_termcolors=256
+"let g:solarized_termcolors=256
 "colorscheme solarized
 colorscheme gruvbox
 "colorscheme monokai
