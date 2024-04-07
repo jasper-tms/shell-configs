@@ -13,6 +13,7 @@ Plug 'joshdick/onedark.vim'
 Plug 'github/copilot.vim'
 Plug 'dense-analysis/ale'
 call plug#end()
+let g:python3_host_prog = expand('~/.virtualenvs/neovim-plugins/bin/python')
 let g:ale_linters = {
     \ 'python': ['flake8'],
     \ }
