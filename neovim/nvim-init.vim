@@ -1,4 +1,5 @@
 " To use this, make `~/.config/nvim/init.vim` a link to this file
+" mkdir -p ~/.config/nvim; ln -sf $(realpath nvim-init.vim) ~/.config/nvim/init.vim
 
 " For this plugins section to work, install vim-plug via the
 " instructions at: https://github.com/junegunn/vim-plug#installation
@@ -23,7 +24,7 @@ let g:ale_python_flake8_options = '--config ' . expand('~/repos/jasper-tms/shell
 " Set colorscheme
 "let g:solarized_termcolors=256
 "colorscheme solarized
-colorscheme gruvbox
+colorscheme gruvbox | set bg=dark
 "colorscheme monokai
 "colorscheme onedark
 
