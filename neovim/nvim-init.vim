@@ -39,8 +39,14 @@ set laststatus=1
 set ruler
 " Allow text selection via mouse
 set mouse=a
+if !empty($SSH_CLIENT) || !empty($SSH_TTY)
+  " Give up on using the system clipboard over ssh
+  set clipboard=
 " Use system clipboard
-set clipboard+=unnamedplus
+else
+  " When not over ssh, use the system clipboard
+  set clipboard+=unnamedplus
+endif
 
 " Indentation settings
 set tabstop=4
