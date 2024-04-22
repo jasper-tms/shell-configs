@@ -27,7 +27,7 @@ fi
 if $IS_ZSH; then
     case "$TERM" in
         # See https://zsh.sourceforge.io/Doc/Release/Prompt-Expansion.html
-        xterm-color|*xterm-256color|screen) export PS1='[%*]%B%F{green}'$computername'%f:%F{blue}%~%f%b$ ';;
+        xterm-color|*xterm-256color|screen) export PS1='[%*]%B%F{green}'$computername'%f:%F{blue}%~/%f%b'$'\n''$ ';;
         *) export PS1='[%*]'$computername':%/$ ';;
     esac
 elif $IS_BASH; then
