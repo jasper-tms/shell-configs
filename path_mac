@@ -9,6 +9,7 @@
 
 export PATH=\
 /Applications/Julia-1.7.app/Contents/Resources/julia/bin:\
+$HOME/repos/nely/scapeio/scripts:\
 $HOME/Library/Python/3.10/bin:\
 $HOME/repos/run_elastix:\
 $HOME/software/executables:\
