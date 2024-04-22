@@ -33,7 +33,7 @@ if $IS_ZSH; then
 elif $IS_BASH; then
     case "$TERM" in
         # See https://misc.flogisoft.com/bash/tip_colors_and_formatting
-        xterm-color|*xterm-256color|screen) export PS1='[\t]\[\033[01;32m\]\u@'$computername'\[\033[00m\]:\[\033[01;34m\]\w\[\033[0m\]$ ';;
+        xterm-color|*xterm-256color|screen) export PS1='[\t]\[\033[01;32m\]\u@'$computername'\[\033[00m\]:\[\033[01;34m\]\w\[\033[0m\]\n$ ';;
         *) export PS1='[\t]\u@'$computername':\w$ ';;
     esac
 fi
