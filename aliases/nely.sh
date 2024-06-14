@@ -11,7 +11,7 @@ elif $IS_MAC; then
     alias mntnas="mount -t smbfs //phelps@upramdyanas1.epfl.ch/data $HOME/mnt/nas"
     alias mntnas2="mount -t smbfs //phelps@upramdyanas1.epfl.ch/data2 $HOME/mnt/nas2"
 fi
-alias cdls="if [ ! -e \"/mnt/labserver/PHELPS_Jasper\" ]; then mntls; fi; cd /mnt/labserver/PHELPS_Jasper"
+alias cdls="if [ ! -e \"/mnt/labserver/data/JSP\" ]; then mntls; fi; cd /mnt/labserver/data/JSP"
 alias cdnas="if [ ! -e \"/mnt/nas/JSP\" ]; then mntnas; fi; cd /mnt/nas/JSP"
 alias cdnas2="if [ ! -e \"/mnt/nas2/JSP\" ]; then mntnas2; fi; cd /mnt/nas2/JSP"
 
@@ -25,3 +25,5 @@ alias cdscape="cd $HOME/repos/jasper-tms/NeLy-projects/build-a-scape"
 
 alias falco="ssh -Y falco"
 alias thorax="ssh -Y thorax"
+
+alias watchgpu="watch -n 1 nvidia-smi"
