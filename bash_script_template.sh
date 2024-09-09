@@ -6,9 +6,16 @@
 #   fakeable commands
 
 show_help () {
-    >&2 echo "Usage: ./bash_script_template.sh arg1 arg2 arg3 [-v] [-f] [-n number]"
-    >&2 echo "        Description goes here"
-    >&2 echo "        and can continue here"
+    >&2 echo "\
+Short description of the script goes here,
+and can continue onto new lines if needed.
+
+Usage: ./bash_script_template.sh arg1 arg2 [-v|--verbose] [-f|--fake] [-n|--number number]
+
+  -v, --verbose: Print more information while running.
+  -f, --fake: Don't actually run any commands that would change the filesystem.
+  -n, --number N: Specify some number.
+"
 }
 
 if [ "$#" -eq 0 ] || [ "$1" = "--help" ]; then
@@ -19,29 +26,26 @@ fi
 #DEFAULTS FOR ARGUMENT-MODIFIABLE VARIABLES GO HERE
 verbose=false
 fake=false
+number=7
 
 positionalArgs=()
 unknownOptions=()
 while [ "$#" -gt 0 ]; do
     case "$1" in
-        -v)
+        -v|--verbose)  # Use | to separate different ways of specifying the same option
             verbose=true
             >&2 echo "Running verbose"
             shift
-        ;;
-        -f)
+            ;;
+        -f|--fake)
             fake=true
             >&2 echo "Running fake"
             shift
-        ;;
-        -e|--exampleLongOption)  # Use | to separate different ways of specifying the same option
-            exampleOption=true
-            shift
-        ;;
+            ;;
         -n|--number)  # For options that require a value to be specified (like "-n 8" or any other "-[letter] [argument]" pair), use "$2" and "shift; shift"
             number="$2"
             shift; shift
-        ;;
+            ;;
         *)  # Catch all other arguments
             if [ " ${1:0:1}" = " -" ]; then  # Ignore arguments starting with - that aren't explicitly listed above
                 unknownOptions+=("$1")
@@ -54,7 +58,7 @@ while [ "$#" -gt 0 ]; do
                 positionalArgs+=("$1")  # Store arguments (other than ones recognized above) in order
             fi
             shift
-        ;;
+            ;;
     esac
 done
 set -- "${positionalArgs[@]}"  # Set the positional arguments, now without any of the options/flags arguments
@@ -79,4 +83,4 @@ fi
 
 
 #CODE GOES HERE
-read -p "How is your day?" input
+echo "The first positional argument plus $number is $(( $1 + $number ))"
