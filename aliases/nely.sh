@@ -16,7 +16,7 @@ fi
 alias cdlsd="if [ ! -e \"/mnt/upramdya_data/JSP\" ]; then mntlsd; fi; cd /mnt/upramdya_data/JSP"
 alias cdls=cdlsd
 alias cdlsf="if [ ! -e \"/mnt/upramdya_files/PHELPS_Jasper\" ]; then mntlsf; fi; cd /mnt/upramdya_files/PHELPS_Jasper"
-alias cdscapepc="if [ ! -e \"/mnt/scapepc/JSP_scape_data\" ]; then mntscapepc; fi; cd /mnt/scapepc/JSP_scape_data"
+alias cdscapepc="if [ ! -e \"/mnt/scapepc/JSP\" ]; then mntscapepc; fi; cd /mnt/scapepc/JSP"
 
 
 alias cdpo="cd $HOME/Dropbox*/Science/'Postdoc - EPFL'"
