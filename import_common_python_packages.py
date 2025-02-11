@@ -7,6 +7,7 @@
 
 import sys
 import os
+from pathlib import Path
 import json
 
 from datetime import datetime, timezone
@@ -20,7 +21,9 @@ try:
     np.set_printoptions(suppress=True)
 except: pass
 
-try: import pandas as pd
+try:
+    import pandas as pd
+    pd.set_option('display.max_rows', 200)
 except: pass
 
 try: import npimage
