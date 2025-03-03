@@ -32,10 +32,14 @@ except: pass
 try:
     env_name = os.environ.get('VIRTUAL_ENV').split('/')[-1]
     if 'fanc' in env_name:
+        import logging
+        logging.basicConfig(level=logging.ERROR)
         import fanc
         client = fanc.get_caveclient()
         print('import fanc; client = fanc.get_caveclient()')
     if 'the-banc' in env_name:
+        import logging
+        logging.basicConfig(level=logging.ERROR)
         import banc
         client = banc.get_caveclient()
         print('import banc; client = banc.get_caveclient()')
