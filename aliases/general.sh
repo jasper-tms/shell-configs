@@ -16,6 +16,11 @@ if $IS_LINUX; then
 else
     alias o='open'
 fi
+if $IS_LINUX; then
+    alias copy='xclip -selection clipboard'
+else
+    alias copy='pbcopy'
+fi
 
 #Some more ls aliases
 alias lf='ls -F'
