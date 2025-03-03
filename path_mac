@@ -10,7 +10,8 @@
 export PATH=\
 /Applications/Julia-1.7.app/Contents/Resources/julia/bin:\
 $HOME/repos/nely/scapeio/scripts:\
-$HOME/Library/Python/3.10/bin:\
+$HOME/repos/nely/DeMotion5D:\
+$HOME/Library/Python/3.12/bin:\
 $HOME/repos/run_elastix:\
 $HOME/software/executables:\
 $HOME/software:\
@@ -18,10 +19,6 @@ $PATH
 
 #$HOME/repos:\
 #/opt/homebrew/opt/qt@5/bin:\ #for pip install pyqt5 to succeed
-#$HOME/repos/gtalign/scripts:\
-#$HOME/repos/gtalign/select_frames:\
-#/usr/local/homebrew/opt/python@3.7/bin:\
-#/usr/local/homebrew/opt/tcl-tk/bin:\
 
 # brew (arm64 installation - Apple M1 architecture)
 # Install instructions say to put the single line `eval "$(/opt/homebrew/bin/brew shellenv)"` below but instead I've put the lines output by `brew shellenv` here for explicitness:
@@ -37,13 +34,13 @@ export INFOPATH="/opt/homebrew/share/info:${INFOPATH:-}";
 #export PATH=/usr/local/homebrew/bin:$PATH
 #alias brew="arch -x86_64 brew"  # Enforce that all brew commands use x86_64-compatibility. Note that this eliminates optimizations for Apple M1 architecture in order to gain compatibility with much more software
 
-if [ "$(python3 --version)" = "Python 3.10.6" ]; then
-    # Add brew-installed python3.10 packages to PYTHONPATH
-    export PYTHONPATH=/opt/homebrew/lib/python3.10/site-packages${PYTHONPATH+:$PYTHONPATH}
-fi
-# Add graph-tools to PYTHONPATH. This path says python3.11 but it looks like
+# Add brew-installed python3.10 packages to PYTHONPATH
+#export PYTHONPATH=/opt/homebrew/lib/python3.10/site-packages${PYTHONPATH+:$PYTHONPATH}
+# Add graph-tools to PYTHONPATH. This path says python3.12 but it looks like
 # its backwards-compatible with older python versions.
-export PYTHONPATH=/opt/homebrew/Cellar/graph-tool/2.58/lib/python3.11/site-packages${PYTHONPATH+:$PYTHONPATH}
+export PYTHONPATH=\
+/opt/homebrew/Cellar/graph-tool/2.79/lib/python3.12/site-packages\
+${PYTHONPATH+:$PYTHONPATH}
 
 
 # elastix/transformix
