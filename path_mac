@@ -44,8 +44,8 @@ ${PYTHONPATH+:$PYTHONPATH}
 
 
 # elastix/transformix
-export LD_LIBRARY_PATH=$HOME/software/elastix-5.0.1-mac/lib${LD_LIBRARY_PATH+:$LD_LIBRARY_PATH}
-export DYLD_LIBRARY_PATH=$HOME/software/elastix-5.0.1-mac/lib${DYLD_LIBRARY_PATH+:$DYLD_LIBRARY_PATH}
+export LD_LIBRARY_PATH=$HOME/software/elastix-5.2.0-mac/lib${LD_LIBRARY_PATH+:$LD_LIBRARY_PATH}
+export DYLD_LIBRARY_PATH=$HOME/software/elastix-5.2.0-mac/lib${DYLD_LIBRARY_PATH+:$DYLD_LIBRARY_PATH}
 
 
 # PATH for the Google Cloud SDK.
