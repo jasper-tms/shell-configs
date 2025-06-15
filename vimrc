@@ -11,3 +11,4 @@ set ruler
 set clipboard=exclude:.*
 
 autocmd Filetype python setlocal textwidth=79
+autocmd BufRead,BufNewFile *.tsv setlocal noexpandtab
