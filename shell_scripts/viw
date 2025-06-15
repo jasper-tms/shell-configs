@@ -4,4 +4,4 @@ if [ "$returncode" -ne 0 ]; then
     echo "$1": command not found
     exit $returncode
 fi
-vi $path
+vi "$path"
