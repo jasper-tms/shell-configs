@@ -23,7 +23,7 @@ alias cdpo="cd $HOME/Dropbox*/Science/'Postdoc - EPFL'"
 alias opo="o $HOME/Dropbox*/Science/'Postdoc - EPFL'"
 alias cdpres="cd $HOME/Dropbox*/Science/'Postdoc - EPFL'/presentations"
 alias cdproj="cd $HOME/Dropbox*/Science/'Postdoc - EPFL'/projects"
-alias cdscape="cd $HOME/repos/jasper-tms/NeLy-projects/build-a-scape"
+alias cdscape="if [ ! -e \"/mnt/upramdya_data/JSP\" ]; then mntlsd; fi; cd /mnt/upramdya_data/JSP/SCAPE"
 
 
 alias falco="ssh -Y falco"
