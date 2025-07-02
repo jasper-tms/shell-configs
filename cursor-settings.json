@@ -1,0 +1,28 @@
+{
+    "note:where this file needs to be to be recognized by Cursor (at least on linux)": "~/.config/Cursor/User/settings.json",
+    "window.commandCenter": true,
+    "[python]": {
+        "editor.rulers": [88]
+    },
+    "flake8.interpreter": [
+        "${env:HOME}/.virtualenvs/neovim-plugins/bin/python"
+    ],
+    "flake8.args": [
+        "--config=${env:HOME}/repos/jasper-tms/shell-configs/neovim/flake8-settings"
+    ],
+    "cursorpyright.analysis.typeCheckingMode": "basic",
+    "cursorpyright.analysis.diagnosticSeverityOverrides": {
+        "reportOperatorIssue": "none",
+        "reportAssignmentType": "none",
+        "reportAttributeAccessIssue": "none",
+        "reportGeneralTypeIssues": "none",
+        "reportOptionalMemberAccess": "none"
+    },
+    "note:other pyright overrides to consider adding": {
+        "reportOptionalIterable": "none",
+        "reportUnnecessaryTypeIgnoreComment": "none",
+        "reportUnnecessaryIsInstance": "none",
+        "reportUnknownMemberType": "none",
+        "reportUnboundVariable": "none"
+    }
+}
