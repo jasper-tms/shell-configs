@@ -43,4 +43,6 @@ try:
         import banc
         client = banc.get_caveclient()
         print('import banc; client = banc.get_caveclient()')
+    if 'scape' in env_name:
+        import matplotlib.pyplot as plt
 except: pass
