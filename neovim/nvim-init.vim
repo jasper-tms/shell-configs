@@ -61,6 +61,8 @@ endif
 " Can't get Cmd+C on mac to work: GPT said to try `<D-c> "+y` but
 " that doesn't do it. So just use `y` on Mac to copy to clipboard.
 
-" Hard wrap lines after 79 characters in python files
+" Filetype-specific settings:
+"   Hard wrap lines after 79 characters in python files
 autocmd Filetype python setlocal textwidth=79
-
+"   Actually use tab characters, not spaces, in .tsv files
+autocmd BufRead,BufNewFile *.tsv setlocal noexpandtab
