@@ -9,10 +9,11 @@
 
 export PATH=\
 /Applications/Julia-1.7.app/Contents/Resources/julia/bin:\
+$HOME/repos/jasper-tms/npimage/scripts:\
 $HOME/repos/nely/scapeio/scripts:\
 $HOME/repos/nely/DeMotion5D:\
 $HOME/Library/Python/3.12/bin:\
-$HOME/repos/run_elastix:\
+$HOME/repos/htem/run_elastix:\
 $HOME/software/executables:\
 $HOME/software:\
 $PATH
