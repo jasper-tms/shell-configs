@@ -6,10 +6,17 @@ if ls frames/* &> /dev/null; then
 fi
 mkdir -p frames
 
+if [ "${1:0:1}" = "/" ]; then
+    # Absolute paths
+    prefix=""
+else
+    # Relative paths
+    prefix="../"
+fi
+
 f=0
-e=${1##*.} #file extension (e.g. tif, jpg)
+ext=${1##*.} #file extension (e.g. tif, jpg)
 for i in "$@"; do
-    echo "Linking $i -> frames/$f.$e"
-    ln -s ../"$i" frames/$f.$e
+    ln -sv "$prefix""$i" frames/$f.$ext
     f=$(($f+1))
 done
