@@ -32,9 +32,6 @@ except ImportError:
     print("INFO: lazy_import not found, so not lazy-importing some packages.")
     lazy_import = None
 
-if lazy_import:
-    npimage = lazy_import.lazy_module('npimage')
-    plt = lazy_import.lazy_module('matplotlib.pyplot')
 
 env_name = os.environ.get('VIRTUAL_ENV', '').split('/')[-1]
 if 'fanc' in env_name:
@@ -43,13 +40,17 @@ if 'fanc' in env_name:
     import fanc
     client = fanc.get_caveclient()
     print('import fanc; client = fanc.get_caveclient()')
-if 'the-banc' in env_name:
+elif 'the-banc' in env_name:
     import logging
     logging.basicConfig(level=logging.ERROR)
     import banc
     client = banc.get_caveclient()
     print('import banc; client = banc.get_caveclient()')
-if 'scape' in env_name:
+elif 'scape' in env_name:
     if lazy_import:
         scapeio = lazy_import.lazy_module('scapeio')
         scapepp = lazy_import.lazy_module('scapepp')
+
+if lazy_import:
+    npimage = lazy_import.lazy_module('npimage')
+    plt = lazy_import.lazy_module('matplotlib.pyplot')
