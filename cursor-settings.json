@@ -1,6 +1,9 @@
 {
-    "note:where this file needs to be to be recognized by Cursor (at least on linux)": "~/.config/Cursor/User/settings.json",
+    "note:where this file needs to be to be recognized by Cursor on linux": "~/.config/Cursor/User/settings.json",
+    "note:where this file needs to be to be recognized by Cursor on macOS": "~/Library/Application Support/Cursor/User/settings.json",
     "window.commandCenter": true,
+    "cursor.composer.backspaceRemoveContext": false,
+    "workbench.sideBar.location": "right",
     "[python]": {
         "editor.rulers": [88]
     },
