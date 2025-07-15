@@ -19,7 +19,9 @@
         "reportAssignmentType": "none",
         "reportAttributeAccessIssue": "none",
         "reportGeneralTypeIssues": "none",
-        "reportOptionalMemberAccess": "none"
+        "reportOptionalMemberAccess": "none",
+        "reportArgumentType": "none",
+        "reportReturnType": "none"
     },
     "note:other pyright overrides to consider adding": {
         "reportOptionalIterable": "none",
