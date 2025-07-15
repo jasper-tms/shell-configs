@@ -9,6 +9,7 @@
 
 export PATH=\
 /Applications/Julia-1.7.app/Contents/Resources/julia/bin:\
+$HOME/Library/'Application Support'/fnm:\
 $HOME/repos/jasper-tms/npimage/scripts:\
 $HOME/repos/nely/scapeio/scripts:\
 $HOME/repos/nely/DeMotion5D:\
@@ -40,7 +41,7 @@ export INFOPATH="/opt/homebrew/share/info:${INFOPATH:-}";
 # Add graph-tools to PYTHONPATH. This path says python3.12 but it looks like
 # its backwards-compatible with older python versions.
 export PYTHONPATH=\
-/opt/homebrew/Cellar/graph-tool/2.79/lib/python3.12/site-packages\
+/opt/homebrew/Cellar/graph-tool/2.92/lib/python3.13/site-packages\
 ${PYTHONPATH+:$PYTHONPATH}
 
 
