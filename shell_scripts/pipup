@@ -1,0 +1,10 @@
+#!/bin/bash
+
+for envname in ~/.virtualenvs/*/; do
+    pypath=${envname}bin/python
+    if [ ! -f $pypath ]; then
+        echo "No .../bin/python found for $envname"
+        continue
+    fi
+    $pypath -m pip install --upgrade pip
+done
