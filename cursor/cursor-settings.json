@@ -29,5 +29,6 @@
         "reportUnnecessaryIsInstance": "none",
         "reportUnknownMemberType": "none",
         "reportUnboundVariable": "none"
-    }
+    },
+    "files.autoSave": "afterDelay"
 }

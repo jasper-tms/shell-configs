@@ -1,0 +1,50 @@
+---
+description: Follow user's python code formatting preferences
+globs:
+alwaysApply: true
+---
+
+When writing python code, follow all of these formatting rules:
+
+Do not leave whitespace on empty lines.
+Do not add inline comments for simple, self-explanatory lines of code.
+By default, use single-quoted strings, 'like this', or for f-strings, f'like this: "{value}"'. Switch to double quoted strings "like this" when the contents of the string include an apostrophe: "because then it's necessary to avoid ugly escaped apostrophes".
+
+Format docstrings as follows (following the numpy style guide). Parameters and Returns should nearly always be present, where Examples may often be omitted unless requested:
+    """
+    Downsample an array by a given factor along each axis.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        The image to downsample.
+
+    factor : int or iterable of ints, default 2
+        An iterable with length matching the number of axes in the image,
+        specifying a downsampling factor along each axis.
+        If factor is provided as an int, that int will be used for each axis.
+
+    keep_input_dtype : bool, default True
+        If True, the output image will have the same dtype as the input image.
+        If False, the output image will have dtype float64 to keep full precision.
+
+    Returns
+    -------
+    np.ndarray
+        The downsampled image.
+
+    Examples
+    --------
+    Downsample a shape (2, 4) array using default settings (factor=2, keep_input_dtype=True)
+    
+    >>> downsample(np.array([1, 2, 3, 4],
+    ...                     [5, 6, 7, 8]))
+    array([[4, 6]])
+
+    Note that the output dtype is kept as int, which loses some precision. Compare to:
+
+    >>> downsample(np.array([1, 2, 3, 4],
+    ...                     [5, 6, 7, 8]),
+    ...            keep_input_dtype=False)
+    array([[3.5, 5.5]])
+    """
