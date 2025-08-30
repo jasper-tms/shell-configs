@@ -30,5 +30,8 @@
         "reportUnknownMemberType": "none",
         "reportUnboundVariable": "none"
     },
-    "files.autoSave": "afterDelay"
+    "files.autoSave": "afterDelay",
+    "files.trimTrailingWhitespace": true,
+    "files.trimFinalNewlines": true,
+    "files.insertFinalNewline": true
 }

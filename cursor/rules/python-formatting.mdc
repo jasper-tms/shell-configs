@@ -6,7 +6,7 @@ alwaysApply: true
 
 When writing python code, follow all of these formatting rules:
 
-Do not leave whitespace on empty lines.
+Do not leave whitespace at the end of lines. (Including do not leave whitespace on empty lines.)
 Do not add inline comments for simple, self-explanatory lines of code.
 By default, use single-quoted strings, 'like this', or for f-strings, f'like this: "{value}"'. Switch to double quoted strings "like this" when the contents of the string include an apostrophe: "because then it's necessary to avoid ugly escaped apostrophes".
 
@@ -37,14 +37,14 @@ Format docstrings as follows (following the numpy style guide). Parameters and R
     --------
     Downsample a shape (2, 4) array using default settings (factor=2, keep_input_dtype=True)
     
-    >>> downsample(np.array([1, 2, 3, 4],
-    ...                     [5, 6, 7, 8]))
+    >>> downsample(np.array([[1, 2, 3, 4],
+    ...                      [5, 6, 7, 8]]))
     array([[4, 6]])
 
     Note that the output dtype is kept as int, which loses some precision. Compare to:
 
-    >>> downsample(np.array([1, 2, 3, 4],
-    ...                     [5, 6, 7, 8]),
+    >>> downsample(np.array([[1, 2, 3, 4],
+    ...                      [5, 6, 7, 8]]),
     ...            keep_input_dtype=False)
     array([[3.5, 5.5]])
     """
