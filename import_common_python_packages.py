@@ -29,7 +29,8 @@ except ImportError:
 try:
     import lazy_import
 except ImportError:
-    print("INFO: lazy_import not found, so not lazy-importing some packages.")
+    print("INFO: lazy_import not found, so not lazy-importing some packages."
+          " `pip install lazy-import` to activate.")
     lazy_import = None
 
 
@@ -47,10 +48,14 @@ elif 'the-banc' in env_name:
     client = banc.get_caveclient()
     print('import banc; client = banc.get_caveclient()')
 elif 'scape' in env_name:
+    import matplotlib.pyplot as plt
     if lazy_import:
         scapeio = lazy_import.lazy_module('scapeio')
         scapepp = lazy_import.lazy_module('scapepp')
 
 if lazy_import:
     npimage = lazy_import.lazy_module('npimage')
-    plt = lazy_import.lazy_module('matplotlib.pyplot')
+    try:
+        plt
+    except NameError:
+        plt = lazy_import.lazy_module('matplotlib.pyplot')
