@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
+"""
+To have this run automatically whenever you start an ipython session,
+make a link to this file in ~/.ipython/profile_default/startup/, e.g.
 
-# To run this automatically whenever you start an ipython session,
-# make a link to this file in ~/.ipython/profile_default/startup/, e.g.
-#   cd ~/.ipython/profile_default/startup/
-#   ln -s ~/repos/jasper-tms/shell-configs/import_common_python_packages.py
+    ln -s ~/repos/jasper-tms/shell-configs/ipython/import_common_python_packages.py \
+        ~/.ipython/profile_default/startup/20-import_common_python_packages.py
+
+(The number at the start of the link name determines the order that startup
+files are run, so you can use that to control the order if needed.)
+"""
 
 import sys
 import os
@@ -52,6 +57,8 @@ elif 'scape' in env_name:
     if lazy_import:
         scapeio = lazy_import.lazy_module('scapeio')
         scapepp = lazy_import.lazy_module('scapepp')
+elif 'sportid' in env_name:
+    import sportid
 
 if lazy_import:
     npimage = lazy_import.lazy_module('npimage')
