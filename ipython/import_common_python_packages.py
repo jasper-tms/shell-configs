@@ -62,7 +62,3 @@ elif 'sportid' in env_name:
 
 if lazy_import:
     npimage = lazy_import.lazy_module('npimage')
-    try:
-        plt
-    except NameError:
-        plt = lazy_import.lazy_module('matplotlib.pyplot')
