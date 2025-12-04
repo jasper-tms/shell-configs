@@ -11,11 +11,14 @@ fi
 
 # Do some one-time setup steps
 if ! which vim > /dev/null; then
-    apt update
-    apt install vim tree -y
-    ln -sf $configs/vimrc ~/.vimrc
     git config --global user.email "jasper.s.phelps@gmail.com"
     git config --global user.name "Jasper Phelps"
+    apt update
+    # General utilities
+    apt install vim tree rsync -y
+    ln -sf $configs/vimrc ~/.vimrc
+    # GL stuff
+    apt install -y libegl1-mesa libegl1-mesa-dev libgl1-mesa-glx libglib2.0-0 libxrender1
 fi
 
 
@@ -29,6 +32,8 @@ export VIRTUALENVWRAPPER_VIRTUALENV=$venv_root/bin/virtualenv
 export WORKON_HOME=/workspace/.virtualenvs
 export PROJECT_HOME=/workspace/Devel
 source $venv_root/bin/virtualenvwrapper.sh
+
+export PYGLET_HEADLESS=true
 
 alias cdw='cd /workspace'
 cd /workspace
