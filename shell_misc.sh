@@ -6,7 +6,9 @@ if $IS_LINUX; then
     fi
 
     # Remap Caps Lock button to be a Ctrl button
-    setxkbmap -option ctrl:nocaps
+    if which setxkbmap > /dev/null; then
+        setxkbmap -option ctrl:nocaps
+    fi
     # Provide a way out if the user is stuck in Caps Lock by allowing
     # them to re-enable the Caps Lock key using a caps-only command
     alias STOPYELLING="setxkbmap -option"
