@@ -44,6 +44,10 @@ export PROJECT_HOME=/workspace/Devel
 source $venv_root/bin/virtualenvwrapper.sh
 
 export PYGLET_HEADLESS=true
+export TORCH_HOME=/workspace/.cache/torch
+export FVCORE_CACHE=/workspace/.cache/fvcore
+export HF_HOME=/workspace/.cache/huggingface
+export XDG_CACHE_HOME=/workspace/.cache
 
 alias cdw='cd /workspace'
 cd /workspace
