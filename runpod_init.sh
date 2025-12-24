@@ -10,15 +10,25 @@ fi
 
 
 # Do some one-time setup steps
-if ! which vim > /dev/null; then
+if ! grep -q "Jasper Phelps" $HOME/.gitconfig 2> /dev/null; then
+    apt update -qq
+    # General utilities
+    apt install -qq -y vim htop tree rsync screen
+    ln -sf $configs/vimrc ~/.vimrc
+    # GL packages required by python rendering libraries
+    if grep -q "22.04" /etc/os-release; then
+        apt install -qq -y libegl1-mesa libegl1-mesa-dev libgl1-mesa-glx libglib2.0-0 libxrender1
+    elif grep -q "24.04" /etc/os-release; then
+        apt install -qq -y libegl1 libgl1-mesa-dri libglib2.0-0 libxrender1
+    else
+        echo "OS does not appear to be either Ubuntu 22.04 or 24.04, so I don't know" \
+             " what GL packages are named and can't install them"
+        exit 1
+    fi
+    # These commands will put entries in $HOME/.gitconfig
+    git config --global core.editor vim
     git config --global user.email "jasper.s.phelps@gmail.com"
     git config --global user.name "Jasper Phelps"
-    apt update
-    # General utilities
-    apt install vim tree rsync -y
-    ln -sf $configs/vimrc ~/.vimrc
-    # GL stuff
-    apt install -y libegl1-mesa libegl1-mesa-dev libgl1-mesa-glx libglib2.0-0 libxrender1
 fi
 
 
