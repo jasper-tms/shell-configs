@@ -10,5 +10,6 @@ set incsearch
 set ruler
 set clipboard=exclude:.*
 
+autocmd BufNewFile *.py call append(0, ['#!/usr/bin/env python3', ''])
 autocmd Filetype python setlocal textwidth=79
 autocmd BufRead,BufNewFile *.tsv setlocal noexpandtab

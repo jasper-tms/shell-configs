@@ -62,7 +62,9 @@ endif
 " that doesn't do it. So just use `y` on Mac to copy to clipboard.
 
 " Filetype-specific settings:
+"   Start new Python files with a shebang
+autocmd BufNewFile *.py call append(0, ['#!/usr/bin/env python3', ''])
 "   Hard wrap lines after 79 characters in python files
 autocmd Filetype python setlocal textwidth=79
-"   Actually use tab characters, not spaces, in .tsv files
+"   Actually use tab characters, not 4 spaces, in .tsv files
 autocmd BufRead,BufNewFile *.tsv setlocal noexpandtab
