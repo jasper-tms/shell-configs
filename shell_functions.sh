@@ -1,10 +1,16 @@
 #Commands must be defined as functions (instead of scripts) if they:
 # - modify and/or need access to special login shell variables (e.g. PS1)
 # - override a shell builtin
-
-
+#
 #This file must be sourced, not just executed, for the functions to be accessible.
 #Sourcing it in your ~/.bashrc is one way to take care of this.
+
+function rmdir {
+    for dir in "$@"; do
+        rm "$dir/.DS_Store" 2> /dev/null
+    done
+    command rmdir "$@"
+}
 
 function exit {
     if [ -z "$STY" ]; then
@@ -106,12 +112,13 @@ function clock {
     fi
 }
 
-# Define realpath on MacOS if it is not present
+# Define realpath on MacOS if it's not present, which was
+# needed before ~2024, but since then `/bin/realpath` exists.
 if $IS_MAC && ! which realpath > /dev/null; then
     function realpath {
         filepath="$1"
         # First, if the file is a symlink, recursively resolve it
-        # TODO figure out I want to handle broken links and then implement it
+        # (TODO figure out how I want to handle broken links)
         while [ -L "$filepath" ]; do
             link_path=$(readlink $filepath)
             case ${link_path:0:1} in
