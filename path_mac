@@ -9,8 +9,11 @@
 
 export PATH=\
 /Applications/Julia-1.7.app/Contents/Resources/julia/bin:\
-$HOME/Library/'Application Support'/fnm:\
+$HOME/.pixi/bin:\
+$HOME/.antigravity/antigravity/bin:\
+$HOME/.local/bin:\
 $HOME/repos/jasper-tms/npimage/scripts:\
+$HOME/repos/jasper-tms/runpod-config:\
 $HOME/repos/nely/scapeio/scripts:\
 $HOME/repos/nely/DeMotion5D:\
 $HOME/Library/Python/3.12/bin:\
