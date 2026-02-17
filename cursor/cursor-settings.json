@@ -20,11 +20,11 @@
         "reportAttributeAccessIssue": "none",
         "reportGeneralTypeIssues": "none",
         "reportOptionalMemberAccess": "none",
+        "reportOptionalIterable": "none",
         "reportArgumentType": "none",
         "reportReturnType": "none"
     },
     "note:other pyright overrides to consider adding": {
-        "reportOptionalIterable": "none",
         "reportUnnecessaryTypeIgnoreComment": "none",
         "reportUnnecessaryIsInstance": "none",
         "reportUnknownMemberType": "none",
@@ -33,5 +33,10 @@
     "files.autoSave": "afterDelay",
     "files.trimTrailingWhitespace": true,
     "files.trimFinalNewlines": true,
-    "files.insertFinalNewline": true
+    "files.insertFinalNewline": true,
+    "remote.SSH.remotePlatform": {
+        "runpod": "linux",
+        "thorax": "linux"
+    },
+    "editor.inlayHints.enabled": "off"
 }
