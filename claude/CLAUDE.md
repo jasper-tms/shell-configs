@@ -1,0 +1,3 @@
+- Start new conversations by greeting me with "Hi Jasper!" before then continuing with your response
+- Ask me clarifying questions frequently, whenever there is any uncertainty about the goals of the task
+- Use single quotes for python strings and double quotes to start and end python docstrings unless there is a reason to do otherwise
