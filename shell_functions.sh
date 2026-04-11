@@ -120,14 +120,14 @@ if $IS_MAC && ! which realpath > /dev/null; then
         # First, if the file is a symlink, recursively resolve it
         # (TODO figure out how I want to handle broken links)
         while [ -L "$filepath" ]; do
-            link_path=$(readlink $filepath)
+            link_path=$(readlink -- "$filepath")
             case ${link_path:0:1} in
                 "/") filepath="$link_path" ;;
                 "~") filepath="$link_path" ;;
-                *) filepath="$(dirname "$filepath")/$link_path"
+                *) filepath="$(dirname -- "$filepath")/$link_path"
             esac
         done
         # Then resolve symlinks and .. and any other stuff in the folder path
-        echo "$(cd "$(dirname "$filepath")" && pwd -P)/$(basename "$1")"
+        echo "$(cd "$(dirname "$filepath")" && pwd -P)/$(basename -- "$1")"
     }
 fi
