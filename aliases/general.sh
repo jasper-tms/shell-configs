@@ -5,10 +5,10 @@ alias vialiases="vi $SHELL_CONFIGS_DIR/aliases/general.sh"
 
 
 #One line convenience functions
-alias vir='vi "$(ls -t | head -1)"'
-alias vio='vi "$(ls -t | tail -1)"'
-alias cdr='cd "$(ls -td -- */ | head -1)"'
-alias cdo='cd "$(ls -td -- */ | tail -1)"'
+alias vir='vi -- "$(ls -t | head -1)"'
+alias vio='vi -- "$(ls -t | tail -1)"'
+alias cdr='cd -- "$(ls -td -- */ | head -1)"'
+alias cdo='cd -- "$(ls -td -- */ | tail -1)"'
 alias dc=cd  # Resist typos
 alias c='clear'
 if $IS_LINUX; then
