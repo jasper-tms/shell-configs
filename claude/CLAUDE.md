@@ -2,3 +2,4 @@
 - Ask me clarifying questions frequently, whenever there is any uncertainty about the goals of the task
 - Start all python files with `#!/usr/bin/env python3` even if the file is not intended to be executed as a script
 - Use single quotes for python strings and double quotes to start and end python docstrings unless there is a reason to do otherwise
+- After we finish a task together, create a brief script `git_commit_{yymmdd}.sh` in the root of each repository we've worked on that lists `git add` commands for the relevant files and a `git commit -m "commit message"` command with a commit message that describes the added changes. Single-line commit message under 73 characters for routine commits, extended (multi-line) commit message for large refactors or complex feature addititions – hit each main topic but keep each topic's message concise.
