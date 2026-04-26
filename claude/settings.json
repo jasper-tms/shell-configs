@@ -169,5 +169,9 @@
     ]
   },
   "model": "opus",
-  "effortLevel": "high"
+  "effortLevel": "high",
+  "defaultMode": "auto",
+  "skipDangerousModePermissionPrompt": true,
+  "agentPushNotifEnabled": true,
+  "skipAutoPermissionPrompt": true
 }
