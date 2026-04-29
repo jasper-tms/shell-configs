@@ -1,0 +1,18 @@
+#!/bin/bash
+
+for repo in ~/repos/*/.git ~/repos/*/*/.git; do
+    if [ ! -d "$repo" ]; then continue; fi
+    cd ${repo%%.git}
+
+    porcelain=$(git status --porcelain=v2 --branch 2>/dev/null)
+    changes=$(echo "$porcelain" | grep -v '^#' | grep -v '^$')
+    ahead_behind=$(echo "$porcelain" | awk '/^# branch.ab/ {print $3, $4}')
+
+    if [ -z "$changes" ] && [ "$ahead_behind" = "+0 -0" ]; then
+        continue
+    fi
+
+    echo $repo
+    git status
+    echo
+done
