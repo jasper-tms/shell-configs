@@ -10,10 +10,14 @@ fi
 
 if "$IS_LINUX"; then
     if [ "$#" -gt 0 ]; then
-        $fiji_dir/ImageJ-linux64 $(realpath "$@")
+        args=()
+        for arg in "$@"; do
+            args+=("$(realpath "$arg")")
+        done
+        "$fiji_dir/ImageJ-linux64" "${args[@]}"
     else
-        $fiji_dir/ImageJ-linux64
+        "$fiji_dir/ImageJ-linux64"
     fi
 elif "$IS_MAC"; then
-    $fiji_dir/Contents/MacOS/ImageJ-macosx "$@"
+    "$fiji_dir/Contents/MacOS/ImageJ-macosx" "$@"
 fi
