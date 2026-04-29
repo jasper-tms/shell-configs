@@ -2,6 +2,7 @@
 - Ask me clarifying questions frequently, whenever there is any uncertainty about the goals of the task
 - Start all python files with `#!/usr/bin/env python3` even if the file is not intended to be executed as a script
 - Format python functions, docstrings, and strings as follows:
+```python
 def function(arg: Literal['x', 'y'],
              next_arg: Union[int, str]) -> None:
     """
@@ -26,4 +27,5 @@ def function(arg: Literal['x', 'y'],
     hello_arg = 'Hello ' + arg
     print("But if there's an apostrophe in the string, use double quotes to avoid escaping")
     return
-- After we finish a task together, create a brief script `git_commit_{yymmdd}.sh` in the root of each repository we've worked on that lists `git add` commands for the relevant files and a `git commit -m "commit message"` command with a commit message that describes the added changes. Single-line commit message under 73 characters for routine commits, extended (multi-line) commit message for large refactors or complex feature addititions – hit each main topic but keep each topic's message concise.
+```
+- After we've finished a task together and the updated behavior is confirmed to be correct (either I tell you it is or you verify it yourself), create a script `git_commit_{yymmdd}{ABC...}_{one-or-two-word-description}.sh` (e.g. `git_commit_260130A_button_behavior.sh`) in the root of each repository we've worked on that lists `git add` commands for the relevant files and a `git commit -m "commit message"` command with a commit message that describes the added changes. Commit message must be under 73 characters and start with a verb. Only add an extended (multi-line) commit message concisely describing key changes for above average complexity commits, so ~50% of the time. `chmod +x` the file so I can run it. If an "A" script already exists for that day, use "B" in the filename, and so on. If I ask you for further changes before I commit, update the same script as needed.
