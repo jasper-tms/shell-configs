@@ -57,6 +57,9 @@ elif 'scape' in env_name:
     if lazy_import:
         scapeio = lazy_import.lazy_module('scapeio')
         scapepp = lazy_import.lazy_module('scapepp')
+elif 'calcemsim' in env_name:
+    if lazy_import:
+        calcemsim = lazy_import.lazy_module('calcemsim')
 elif 'sportid' in env_name:
     import sportid
 
