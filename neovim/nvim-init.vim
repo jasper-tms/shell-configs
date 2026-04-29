@@ -19,6 +19,38 @@ let g:ale_linters = {
     \ }
 let g:ale_python_flake8_executable = expand('~/.virtualenvs/neovim-plugins/bin/flake8')
 let g:ale_python_flake8_options = '--config ' . expand('~/repos/jasper-tms/shell-configs/neovim/flake8-settings')
+nmap ]A <Plug>(ale_next_wrap)
+nmap [A <Plug>(ale_previous_wrap)
+let s:ale_skip_codes = ['E501']
+function! s:ALEJumpSkipCodes(direction) abort
+  let l:items = filter(copy(ale#engine#GetLoclist(bufnr(''))),
+        \ 'index(s:ale_skip_codes, get(v:val, "code", "")) == -1')
+  if empty(l:items)
+    return
+  endif
+  let l:line = line('.')
+  let l:col = col('.')
+  if a:direction ==# 'next'
+    for l:item in l:items
+      if l:item.lnum > l:line || (l:item.lnum == l:line && l:item.col > l:col)
+        call cursor(l:item.lnum, l:item.col)
+        return
+      endif
+    endfor
+    call cursor(l:items[0].lnum, l:items[0].col)
+  else
+    for l:item in reverse(copy(l:items))
+      if l:item.lnum < l:line || (l:item.lnum == l:line && l:item.col < l:col)
+        call cursor(l:item.lnum, l:item.col)
+        return
+      endif
+    endfor
+    call cursor(l:items[-1].lnum, l:items[-1].col)
+  endif
+endfunction
+nnoremap <silent> ]a :call <SID>ALEJumpSkipCodes('next')<CR>
+nnoremap <silent> [a :call <SID>ALEJumpSkipCodes('prev')<CR>
+
 
 " End plugins section
 
