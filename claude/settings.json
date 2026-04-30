@@ -120,14 +120,6 @@
       "Bash(npm run test)",
       "Bash(npm run test *)"
     ],
-    "ask": [
-      "Bash(chmod *-R*)",
-      "Bash(chmod *-fR*)",
-      "Bash(chmod *-vR*)",
-      "Bash(chmod *-fvR*)",
-      "Bash(chmod *-vfR*)",
-      "Bash(chmod *--recursive*)"
-    ],
     "deny": [
       "Bash(pip install *)",
       "Bash(pip3 install *)",
@@ -164,6 +156,14 @@
       "Read(~/.zsh_history)",
       "Read(**/.env)",
       "Read(**/.env.*)"
+    ],
+    "ask": [
+      "Bash(chmod *-R*)",
+      "Bash(chmod *-fR*)",
+      "Bash(chmod *-vR*)",
+      "Bash(chmod *-fvR*)",
+      "Bash(chmod *-vfR*)",
+      "Bash(chmod *--recursive*)"
     ],
     "additionalDirectories": [
       "/tmp"
