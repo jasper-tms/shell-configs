@@ -19,6 +19,23 @@ if $IS_MAC; then
     export LSCOLORS=ExGxBxDxCxEgEdxbxgxcxd
 fi
 
+# Before setting LC_COLLATE=C, the default collation is UTF-8 which does this:
+# $ ls -1
+# apple
+# Apple
+# +middle    <- leading punctuation is basically ignored (only used as a tiebreaker)
+# middle
+# zebra
+# Zebra      <- capitalization is basically ignored too (only used as a tiebreaker)
+export LC_COLLATE=C
+# $ LC_COLLATE=C ls -1
+# +middle    <- all characters now influence sorting, and + sorts before letters
+# Apple
+# Zebra      <- capital letters now sort before lowercase letters
+# apple
+# middle
+# zebra
+
 if $IS_MAC; then
     computername=$(scutil --get LocalHostName)
 elif $IS_ZSH; then
