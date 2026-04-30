@@ -121,6 +121,20 @@
       "Bash(npm run test *)"
     ],
     "deny": [
+      "Bash(rm *\\**)",
+      "Bash(mv *\\**)",
+      "Bash(shred *\\**)",
+      "Bash(truncate *\\**)",
+      "Bash(chown *\\**)",
+      "Bash(chgrp *\\**)",
+      "Bash(gzip *\\**)",
+      "Bash(gunzip *\\**)",
+      "Bash(sed *-i*\\**)",
+      "Bash(perl *-i*\\**)",
+      "Bash(find *-delete*)",
+      "Bash(find *-exec rm*)",
+      "Bash(*xargs rm*)",
+      "Bash(*xargs -* rm*)",
       "Bash(pip install *)",
       "Bash(pip3 install *)",
       "Bash(python -m pip install *)",
@@ -133,6 +147,14 @@
       "Bash(git stash *)",
       "Bash(git push)",
       "Bash(git push *)",
+      "Bash(git checkout)",
+      "Bash(git checkout *)",
+      "Bash(git restore)",
+      "Bash(git restore *)",
+      "Bash(git reset --hard)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean -f*)",
+      "Bash(git clean *-f*)",
       "Bash(env)",
       "Bash(env *)",
       "Bash(printenv)",
@@ -163,7 +185,11 @@
       "Bash(chmod *-vR*)",
       "Bash(chmod *-fvR*)",
       "Bash(chmod *-vfR*)",
-      "Bash(chmod *--recursive*)"
+      "Bash(chmod *--recursive*)",
+      "Bash(chown *-R*)",
+      "Bash(chown *--recursive*)",
+      "Bash(chgrp *-R*)",
+      "Bash(chgrp *--recursive*)"
     ],
     "additionalDirectories": [
       "/tmp"
