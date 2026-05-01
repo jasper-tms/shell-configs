@@ -139,6 +139,7 @@
       "Bash(pip3 install *)",
       "Bash(python -m pip install *)",
       "Bash(python3 -m pip install *)",
+      "Bash(brew install*)",
       "Bash(git add)",
       "Bash(git add *)",
       "Bash(git commit)",
