@@ -8,12 +8,12 @@
 # file to ~/.path and sourcing that.
 
 export PATH=\
-/Applications/Julia-1.7.app/Contents/Resources/julia/bin:\
+$HOME/.local/bin:\
 $HOME/.pixi/bin:\
 $HOME/.antigravity/antigravity/bin:\
-$HOME/.local/bin:\
+$HOME/.dotnet/tools:\
 $HOME/repos/jasper-tms/npimage/scripts:\
-$HOME/repos/jasper-tms/runpod-config:\
+$HOME/repos/action-analytics/runpod-config/pods/:\
 $HOME/repos/nely/scapeio/scripts:\
 $HOME/repos/nely/DeMotion5D:\
 $HOME/Library/Python/3.12/bin:\
@@ -27,12 +27,13 @@ $PATH
 
 # brew (arm64 installation - Apple M1 architecture)
 # Install instructions say to put the single line `eval "$(/opt/homebrew/bin/brew shellenv)"` below but instead I've put the lines output by `brew shellenv` here for explicitness:
-export HOMEBREW_PREFIX="/opt/homebrew";
-export HOMEBREW_CELLAR="/opt/homebrew/Cellar";
-export HOMEBREW_REPOSITORY="/opt/homebrew";
-export PATH="/opt/homebrew/bin:/opt/homebrew/sbin${PATH+:$PATH}";
-export MANPATH="/opt/homebrew/share/man${MANPATH+:$MANPATH}:";
-export INFOPATH="/opt/homebrew/share/info:${INFOPATH:-}";
+export HOMEBREW_PREFIX="/opt/homebrew"
+export HOMEBREW_CELLAR="/opt/homebrew/Cellar"
+export HOMEBREW_REPOSITORY="/opt/homebrew"
+export PATH="/opt/homebrew/bin:/opt/homebrew/sbin${PATH+:$PATH}"
+export MANPATH="/opt/homebrew/share/man${MANPATH+:$MANPATH}:"
+export INFOPATH="/opt/homebrew/share/info:${INFOPATH:-}"
+export DOTNET_ROOT="/opt/homebrew/opt/dotnet@9/libexec"
 #export PKG_CONFIG_PATH="/opt/homebrew/opt/openblas/lib/pkgconfig"  # This is not related to brew install but to using a brew package
 
 # brew (x86_64 installation - by using `arch -x86` when installing brew on Apple M1 architecture)
