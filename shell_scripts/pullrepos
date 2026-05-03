@@ -1,6 +1,15 @@
 #!/bin/bash
 
-for repo in ~/repos/*/.git ~/repos/*/*/.git; do
+if [ -d ~/repos ]; then
+    repos_dir=~/repos
+elif [ -d /workspace/repos ]; then
+    repos_dir=/workspace/repos
+else
+    echo "No repos directory found at ~/repos or /workspace/repos" >&2
+    exit 1
+fi
+
+for repo in "$repos_dir"/*/.git "$repos_dir"/*/*/.git; do
     if [ ! -d "$repo" ]; then continue; fi
     echo $repo
     cd ${repo%%.git}
