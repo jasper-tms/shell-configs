@@ -1,18 +1,22 @@
 " To use this, make `~/.config/nvim/init.vim` a link to this file
 " mkdir -p ~/.config/nvim; ln -sf $(realpath nvim-init.vim) ~/.config/nvim/init.vim
 
+" Disable unused language providers to speed up startup
+let g:loaded_python_provider = 0
+let g:loaded_ruby_provider = 0
+let g:loaded_perl_provider = 0
+let g:loaded_node_provider = 0
+
 " For this plugins section to work, install vim-plug via the
 " instructions at: https://github.com/junegunn/vim-plug#installation
 " Then install the plugins by launching nvim and running :PlugInstall
 " Start plugins section
 call plug#begin(stdpath('data') . '/plugged')
-Plug 'altercation/vim-colors-solarized'
 Plug 'morhetz/gruvbox'
-Plug 'crusoexia/vim-monokai'
-Plug 'joshdick/onedark.vim'
-Plug 'github/copilot.vim'
-Plug 'dense-analysis/ale'
+Plug 'github/copilot.vim', { 'on': [] }
+Plug 'dense-analysis/ale', { 'for': 'python' }
 call plug#end()
+autocmd InsertEnter * ++once call plug#load('copilot.vim')
 let s:venvs = !empty($WORKON_HOME) ? $WORKON_HOME : expand('~/.virtualenvs')
 let g:python3_host_prog = s:venvs . '/neovim-plugins/bin/python'
 let g:ale_linters = {
@@ -56,15 +60,10 @@ nnoremap <silent> [a :call <SID>ALEJumpSkipCodes('prev')<CR>
 " End plugins section
 
 " Set colorscheme
-"let g:solarized_termcolors=256
-"colorscheme solarized
-colorscheme gruvbox | set bg=dark
-"colorscheme monokai
-"colorscheme onedark
+set bg=dark
+colorscheme gruvbox
 
 " General settings
-filetype plugin indent on
-syntax on
 set number
 set hlsearch
 set incsearch
@@ -94,10 +93,13 @@ endif
 " Can't get Cmd+C on mac to work: GPT said to try `<D-c> "+y` but
 " that doesn't do it. So just use `y` on Mac to copy to clipboard.
 
-" Filetype-specific settings:
-"   Start new Python files with a shebang
-autocmd BufNewFile *.py call append(0, ['#!/usr/bin/env python3', ''])
-"   Hard wrap lines after 79 characters in python files
-autocmd Filetype python setlocal textwidth=79
-"   Actually use tab characters, not 4 spaces, in .tsv files
-autocmd BufRead,BufNewFile *.tsv setlocal noexpandtab
+" Filetype-specific settings
+augroup jasper_ftypes
+  autocmd!
+  "   Start new Python files with a shebang
+  autocmd BufNewFile *.py call append(0, ['#!/usr/bin/env python3', ''])
+  "   Hard wrap lines after 79 characters in python files
+  autocmd FileType python setlocal textwidth=79
+  "   Actually use tab characters, not 4 spaces, in .tsv files
+  autocmd BufRead,BufNewFile *.tsv setlocal noexpandtab
+augroup END
