@@ -5,7 +5,7 @@
 " instructions at: https://github.com/junegunn/vim-plug#installation
 " Then install the plugins by launching nvim and running :PlugInstall
 " Start plugins section
-call plug#begin('~/.config/nvim/plugged')
+call plug#begin(stdpath('data') . '/plugged')
 Plug 'altercation/vim-colors-solarized'
 Plug 'morhetz/gruvbox'
 Plug 'crusoexia/vim-monokai'
@@ -13,12 +13,13 @@ Plug 'joshdick/onedark.vim'
 Plug 'github/copilot.vim'
 Plug 'dense-analysis/ale'
 call plug#end()
-let g:python3_host_prog = expand('~/.virtualenvs/neovim-plugins/bin/python')
+let s:venvs = !empty($WORKON_HOME) ? $WORKON_HOME : expand('~/.virtualenvs')
+let g:python3_host_prog = s:venvs . '/neovim-plugins/bin/python'
 let g:ale_linters = {
     \ 'python': ['flake8'],
     \ }
-let g:ale_python_flake8_executable = expand('~/.virtualenvs/neovim-plugins/bin/flake8')
-let g:ale_python_flake8_options = '--config ' . expand('~/repos/jasper-tms/shell-configs/neovim/flake8-settings')
+let g:ale_python_flake8_executable = s:venvs . '/neovim-plugins/bin/flake8'
+let g:ale_python_flake8_options = '--config ' . fnamemodify(resolve(expand('<sfile>:p')), ':h') . '/flake8-settings'
 nmap ]A <Plug>(ale_next_wrap)
 nmap [A <Plug>(ale_previous_wrap)
 let s:ale_skip_codes = ['E501']
