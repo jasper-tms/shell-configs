@@ -9,10 +9,14 @@ else
     exit 1
 fi
 
+echo "Running \`git pull\` on all repos within $repos_dir..."
+echo
 for repo in "$repos_dir"/*/.git "$repos_dir"/*/*/.git; do
     if [ ! -d "$repo" ]; then continue; fi
-    echo $repo
     cd ${repo%%.git}
-    git pull
+    output=$(git pull 2>&1)
+    if [ "$output" = "Already up to date." ]; then continue; fi
+    echo $repo
+    echo "$output"
     echo
 done
