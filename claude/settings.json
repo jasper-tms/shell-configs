@@ -222,6 +222,10 @@
       "/tmp"
     ]
   },
+  "statusLine": {
+    "type": "command",
+    "command": "/home/phelps/.claude/statusline-command.sh"
+  },
   "effortLevel": "high",
   "skipDangerousModePermissionPrompt": true,
   "agentPushNotifEnabled": true,

@@ -9,6 +9,9 @@ CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 # Symlink settings.json
 ln -snvf "$SCRIPT_DIR/settings.json" "$CLAUDE_DIR/settings.json"
 
+# Symlink statusline-command.sh
+ln -snvf "$SCRIPT_DIR/statusline-command.sh" "$CLAUDE_DIR/statusline-command.sh"
+
 # Ensure the global CLAUDE.md references this repo's CLAUDE.md as its first line.
 GLOBAL_CLAUDE_MD="$CLAUDE_DIR/CLAUDE.md"
 REF_LINE="@$SCRIPT_DIR/CLAUDE.md"
