@@ -1,12 +1,31 @@
 #!/bin/bash
+# One-time configuration steps to get the files in this folder
+# to be seen and used by Claude Code. Run this file as a script
+# or run the commands yourself.
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd -P)"
+CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 
-# symlink files in this directory into $HOME/.claude where
-# Claude Code will actually see and use them
-mkdir -p "$HOME/.claude" > /dev/null
-ln -sv "$SCRIPT_DIR/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
-ln -sv "$SCRIPT_DIR/settings.json" "$HOME/.claude/settings.json"
+# Symlink settings.json
+ln -snvf "$SCRIPT_DIR/settings.json" "$CLAUDE_DIR/settings.json"
+
+# Ensure the global CLAUDE.md references this repo's CLAUDE.md as its first line.
+GLOBAL_CLAUDE_MD="$CLAUDE_DIR/CLAUDE.md"
+REF_LINE="@$SCRIPT_DIR/CLAUDE.md"
+if [ ! -f "$GLOBAL_CLAUDE_MD" ]; then
+    echo "$REF_LINE" > "$GLOBAL_CLAUDE_MD"
+    echo "created $GLOBAL_CLAUDE_MD with reference to $SCRIPT_DIR/CLAUDE.md"
+elif ! grep -Fxq "$REF_LINE" "$GLOBAL_CLAUDE_MD"; then
+    printf '%s\n%s' "$REF_LINE" "$(cat "$GLOBAL_CLAUDE_MD")" > "$GLOBAL_CLAUDE_MD"
+    echo "prepended reference to $SCRIPT_DIR/CLAUDE.md in $GLOBAL_CLAUDE_MD"
+fi
+
+# Link each skill in this repo into the global claude skills folder
+mkdir -p "$CLAUDE_DIR/skills" > /dev/null
+for skill_dir in "$SCRIPT_DIR/skills"/*/; do
+    [ -d "$skill_dir" ] || continue
+    ln -snvf "${skill_dir%/}" "$CLAUDE_DIR/skills/$(basename "$skill_dir")"
+done
 
 # Claude tries to update settings.json too much (e.g. user changes the model or
 # effort within a session -> claude tries to make that the new default for future
