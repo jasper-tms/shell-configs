@@ -28,7 +28,7 @@ After launching, you MUST confirm the new session is at the main UI (not stalled
    screen -S claude-remote-N -X hardcopy /tmp/check-N.txt
    ```
 
-2. Read the file. Pipe through `tr -s ' ' | sed '/^[[:space:]]*$/d'` to clean up Unicode glyphs and whitespace.
+2. Read the file. Clean it up with `LC_ALL=C tr -cd '[:print:]\n' < /tmp/check-N.txt | sed '/^[[:space:]]*$/d'` to strip the screen's box-drawing glyphs and blank lines.
 
 3. Look for one of these:
    - **"Remote Control active"** in the footer → session is up. Grab the `https://claude.ai/code/session_…` URL and report success to the user with screen name, RC display name, working directory, and URL.

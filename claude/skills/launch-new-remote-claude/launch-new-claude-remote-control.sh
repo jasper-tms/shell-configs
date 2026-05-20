@@ -47,14 +47,14 @@ EOF
 
 # Auto-number the session: pick the lowest unused N among existing
 # claude-remote-N screens, so killed sessions free up their numbers.
-declare -A used=()
-while read -r n; do
-    [[ "$n" =~ ^[0-9]+$ ]] || continue
-    used[$n]=1
-done < <(screen -ls 2>/dev/null | grep -oE 'claude-remote-[0-9]+' | sed 's/.*-//' || true)
+# (Sorted list instead of an associative array — works on Bash 3.2 / macOS.)
+existing_ns="$(screen -ls 2>/dev/null \
+    | grep -oE 'claude-remote-[0-9]+' \
+    | sed 's/.*-//' \
+    | sort -n -u || true)"
 
 N=1
-while [[ -n "${used[$N]:-}" ]]; do
+while printf '%s\n' "$existing_ns" | grep -qx "$N"; do
     N=$(( N + 1 ))
 done
 SCREEN_NAME="claude-remote-${N}"
