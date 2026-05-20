@@ -140,16 +140,6 @@
       "Bash(python -m pip install *)",
       "Bash(python3 -m pip install *)",
       "Bash(brew install*)",
-      "Bash(git add)",
-      "Bash(git add *)",
-      "Bash(git commit)",
-      "Bash(git commit *)",
-      "Bash(git stash)",
-      "Bash(git stash *)",
-      "Bash(git push)",
-      "Bash(git push *)",
-      "Bash(git checkout)",
-      "Bash(git checkout *)",
       "Bash(git restore)",
       "Bash(git restore *)",
       "Bash(git reset --hard)",
@@ -207,6 +197,8 @@
       "Bash(* .env *)"
     ],
     "ask": [
+      "Bash(git push)",
+      "Bash(git push *)",
       "Bash(chmod *-R*)",
       "Bash(chmod *-fR*)",
       "Bash(chmod *-vR*)",
@@ -224,7 +216,13 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "/home/phelps/.claude/statusline-command.sh"
+    "command": "$HOME/.claude/statusline-command.sh"
+  },
+  "autoMode": {
+    "soft_deny": [
+      "$defaults",
+      "git push is allowed when user has said they want the agent to do it, even pushing to main or master branches"
+    ]
   },
   "effortLevel": "high",
   "skipDangerousModePermissionPrompt": true,
