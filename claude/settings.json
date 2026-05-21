@@ -224,6 +224,10 @@
       "git push is allowed when user has said they want the agent to do it, even pushing to main or master branches"
     ]
   },
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
   "effortLevel": "high",
   "skipDangerousModePermissionPrompt": true,
   "agentPushNotifEnabled": true,
