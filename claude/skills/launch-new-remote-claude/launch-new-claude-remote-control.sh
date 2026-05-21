@@ -32,7 +32,6 @@ case "$HOST_SHORT" in
     jaspberrypi)  PREFIX="rpi" ;;
     *)            PREFIX="$(printf '%s' "$HOST_SHORT" | tr '[:upper:]' '[:lower:]')" ;;
 esac
-RC_DISPLAY_NAME="${PREFIX}-${N}"
 
 # Resolve work directory: canonicalize so the path used as a key in
 # ~/.claude.json matches what claude itself will use at startup.
@@ -70,6 +69,7 @@ while printf '%s\n' "$existing_ns" | grep -qx "$N"; do
     N=$(( N + 1 ))
 done
 SCREEN_NAME="claude-remote-${N}"
+RC_DISPLAY_NAME="${PREFIX}-${N}"
 
 cd "$WORK_DIR"
 screen -dmS "$SCREEN_NAME" \
