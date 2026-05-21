@@ -9,7 +9,8 @@
 #
 # Session naming (auto-numbered from existing claude-remote-N screens):
 #   - screen name:     claude-remote-N
-#   - --name (RC UI):  rpi-N
+#   - --name (RC UI):  <prefix>-N, where <prefix> is machine-dependent
+#                      (see the hostname case block below)
 #
 # Usage:
 #   ./launch-new-claude-remote-control.sh [initial-prompt]
@@ -21,6 +22,17 @@
 set -euo pipefail
 
 INITIAL_PROMPT="${1:-Wait for further instructions}"
+
+# Pick the Remote Control display-name prefix for this machine, keyed on the
+# short hostname. Add a case per machine you use. Unrecognized machines fall
+# back to the lowercased short hostname (tr, not ${var,,}, for Bash 3.2/macOS).
+HOST_SHORT="$(hostname -s)"
+case "$HOST_SHORT" in
+    Jaspers-Mac*) PREFIX="mac" ;;
+    jaspberrypi)  PREFIX="rpi" ;;
+    *)            PREFIX="$(printf '%s' "$HOST_SHORT" | tr '[:upper:]' '[:lower:]')" ;;
+esac
+RC_DISPLAY_NAME="${PREFIX}-${N}"
 
 # Resolve work directory: canonicalize so the path used as a key in
 # ~/.claude.json matches what claude itself will use at startup.
@@ -58,7 +70,6 @@ while printf '%s\n' "$existing_ns" | grep -qx "$N"; do
     N=$(( N + 1 ))
 done
 SCREEN_NAME="claude-remote-${N}"
-RC_DISPLAY_NAME="rpi-${N}"
 
 cd "$WORK_DIR"
 screen -dmS "$SCREEN_NAME" \

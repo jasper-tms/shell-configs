@@ -1,11 +1,11 @@
 ---
 name: launch-new-remote-claude
-description: Launch a new Claude Code Remote Control session in a detached screen on this Raspberry Pi. Use when the user asks to "start a new session", "spawn a new claude", "launch another remote-control instance", or similar.
+description: Launch a new Claude Code Remote Control session in a detached screen on this machine. Use when the user asks to "start a new session", "spawn a new claude", "launch another remote-control instance", or similar.
 ---
 
 Run `~/.claude/skills/launch-new-remote-claude/launch-new-claude-remote-control.sh` via the Bash tool. The script:
 
-- Auto-numbers the session: screen `claude-remote-N`, RC display name `rpi-N`, where N is one more than the highest existing `claude-remote-N` screen.
+- Auto-numbers the session: screen `claude-remote-N`, RC display name `<prefix>-N`, where N is the lowest unused number among existing `claude-remote-N` screens. `<prefix>` is machine-dependent, chosen by a `hostname -s` case block in the script (`macbook` on this MacBook, `rpi` on the Pi); unrecognized machines fall back to the lowercased short hostname.
 - Uses `$CLAUDE_WORK_DIR` as the session's working directory, falling back to `~/.claude/remote-sessions/`. The directory is created if missing, and workspace trust is pre-accepted for it in `~/.claude.json`.
 - Passes `--permission-mode auto` so the new session starts in Auto Mode.
 - Defaults the initial prompt to "Wait for further instructions".
@@ -22,18 +22,18 @@ CLAUDE_WORK_DIR=/path/to/project ~/.claude/skills/launch-new-remote-claude/launc
 
 After launching, you MUST confirm the new session is at the main UI (not stalled on a prompt) before telling the user it's ready. The trust dialog should be pre-accepted, but verify it didn't appear anyway.
 
-1. Wait ~5 seconds, then capture the screen:
+1. Capture and clean the screen in one go (the sleeps matter: `hardcopy` writes the file asynchronously, and a fresh session needs a few seconds to render its splash then the UI):
 
    ```
-   screen -S claude-remote-N -X hardcopy /tmp/check-N.txt
+   sleep 6; screen -S claude-remote-N -X hardcopy /tmp/check-N.txt; sleep 1; LC_ALL=C tr -cd '[:print:]\n' < /tmp/check-N.txt | sed '/^[[:space:]]*$/d'
    ```
 
-2. Read the file. Clean it up with `LC_ALL=C tr -cd '[:print:]\n' < /tmp/check-N.txt | sed '/^[[:space:]]*$/d'` to strip the screen's box-drawing glyphs and blank lines.
+   Always strip with `LC_ALL=C tr` first — never run `sed`/`grep` on the raw hardcopy (its box-drawing bytes throw "illegal byte sequence" on macOS).
 
-3. Look for one of these:
+2. Look for one of these:
    - **"Remote Control active"** in the footer → session is up. Grab the `https://claude.ai/code/session_…` URL and report success to the user with screen name, RC display name, working directory, and URL.
    - **"Is this a project you created or one you trust?"** → stalled on trust dialog. Accept it (see below), then re-verify.
-   - Neither → wait a few more seconds and recapture; claude may still be starting.
+   - **Empty output, or neither string present** → captured too early (not a failure); recapture every few seconds until one of the above appears, up to ~30s.
 
 ## Accepting a trust dialog if it appears
 
