@@ -8,7 +8,7 @@ elif [ -e "/Applications/Fiji.app" ]; then
     fiji_dir="/Applications/Fiji.app"
 fi
 
-if "$IS_LINUX"; then
+if ${IS_LINUX:=false}; then
     if [ "$#" -gt 0 ]; then
         args=()
         for arg in "$@"; do
@@ -18,6 +18,6 @@ if "$IS_LINUX"; then
     else
         "$fiji_dir/ImageJ-linux64"
     fi
-elif "$IS_MAC"; then
+elif ${IS_MAC:=false}; then
     "$fiji_dir/Contents/MacOS/ImageJ-macosx" "$@"
 fi

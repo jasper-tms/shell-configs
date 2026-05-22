@@ -12,9 +12,9 @@ else
     echo "Could not determine shell!"
 fi
 
-if $IS_BASH; then
+if ${IS_BASH:=false}; then
     export SHELL_CONFIGS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-elif $IS_ZSH; then
+elif ${IS_ZSH:=false}; then
     export SHELL_CONFIGS_DIR="${0:A:h}"
 fi
 
@@ -26,9 +26,14 @@ case "$(uname -s)" in
     "Darwin")   IS_MAC=true;;
 esac
 
-source $SHELL_CONFIGS_DIR/shell_misc.sh
+# Source shell_functions.sh first because it defines add_to_path, which
+# shell_misc.sh (and the shell_scripts line below) rely on. add_to_path adds
+# each directory only if absent, so re-sourcing these configs in nested or
+# non-interactive shells spawned by scripts, editors, or screen never stacks up
+# duplicate PATH entries.
 source $SHELL_CONFIGS_DIR/shell_functions.sh
-export PATH=${SHELL_CONFIGS_DIR}/shell_scripts:$PATH
+source $SHELL_CONFIGS_DIR/shell_misc.sh
+add_to_path "${SHELL_CONFIGS_DIR}/shell_scripts"
 
 
 #Aliases

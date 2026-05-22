@@ -1,12 +1,12 @@
 # Aliases for navigating filesystems and servers in the Neuroengineering Lab (PI: Pavan Ramdya)
 
-if $IS_LINUX; then
+if ${IS_LINUX:=false}; then
     # Assume mount settings are listed in /etc/fstab
     alias mntls="$HOME/repos/nely/knowledge-base/mount_servers.sh"
     alias mntlsd="mount /mnt/upramdya_data"
     alias mntlsf="mount /mnt/upramdya_files"
     alias mntscapepc="mount /mnt/scapepc"
-elif $IS_MAC; then
+elif ${IS_MAC:=false}; then
     # Use samba mounts because I couldn't get cifs to work on Mac
     alias mntlsf="mount -t smbfs //phelps@sv-nas1.rcp.epfl.ch/upramdya/files $HOME/mnt/upramdya_files"
     alias mntlsd="mount -t smbfs //phelps@sv-nas1.rcp.epfl.ch/upramdya/data $HOME/mnt/upramdya_data"

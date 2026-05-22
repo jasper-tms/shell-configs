@@ -11,12 +11,12 @@ alias cdr='cd -- "$(ls -td -- */ | head -1)"'
 alias cdo='cd -- "$(ls -td -- */ | tail -1)"'
 alias dc=cd  # Resist typos
 alias c='clear'
-if $IS_LINUX; then
+if ${IS_LINUX:=false}; then
     alias o='xdg-open'
 else
     alias o='open'
 fi
-if $IS_LINUX; then
+if ${IS_LINUX:=false}; then
     alias copy='xclip -selection clipboard'
 else
     alias copy='pbcopy'
@@ -30,7 +30,7 @@ alias lo='ls -Flht' #Oldest edit at the bottom
 alias lod='ls -lhtd -- */' #Oldest edit at the bottom, folders only
 alias lt='ls -Flhtr' #Most recent edit at the bottom
 alias ltd='ls -lhtrd -- */' #Most recent edit at the bottom, folders only
-if $IS_LINUX; then #-v options below are linux-specific
+if ${IS_LINUX:=false}; then #-v options below are linux-specific
     alias lv='ls -Flhv' #sorts output numerically instead of by string order
     alias lvd='ls -lhvd -- */' #sorts output numerically instead of by string order, folders only
 fi
@@ -39,7 +39,7 @@ fi
 #'Bookmarked' folders
 alias cdrepos='cd ~/repos'
 alias cdmedia="cd $HOME/Dropbox*/Science/the_big_media_folder"
-if $IS_LINUX; then
+if ${IS_LINUX:=false}; then
     alias cdmyshortcuts='cd ~/.local/share/applications'
     alias cdshortcuts='cd /usr/share/applications'
 fi

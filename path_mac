@@ -7,20 +7,24 @@
 # this file in the shell-configs repo, or by linking this
 # file to ~/.path and sourcing that.
 
-export PATH=\
-$HOME/.local/bin:\
-$HOME/.pixi/bin:\
-$HOME/.antigravity/antigravity/bin:\
-$HOME/.dotnet/tools:\
-$HOME/repos/jasper-tms/npimage/scripts:\
-$HOME/repos/action-analytics/runpod-config/pods/:\
-$HOME/repos/nely/scapeio/scripts:\
-$HOME/repos/nely/DeMotion5D:\
-$HOME/Library/Python/3.12/bin:\
-$HOME/repos/htem/run_elastix:\
-$HOME/software/executables:\
-$HOME/software:\
-$PATH
+# Ensure add_to_path is available even if this file is sourced before
+# configure.sh. shell_functions.sh is safe to source on its own. ${0:A:h} is
+# the absolute directory containing this file in zsh.
+command -v add_to_path > /dev/null 2>&1 || source "${0:A:h}/shell_functions.sh"
+
+add_to_path \
+    "$HOME/.local/bin" \
+    "$HOME/.pixi/bin" \
+    "$HOME/.antigravity/antigravity/bin" \
+    "$HOME/.dotnet/tools" \
+    "$HOME/repos/jasper-tms/npimage/scripts" \
+    "$HOME/repos/action-analytics/runpod-config/pods/" \
+    "$HOME/repos/nely/scapeio/scripts" \
+    "$HOME/repos/nely/DeMotion5D" \
+    "$HOME/Library/Python/3.12/bin" \
+    "$HOME/repos/htem/run_elastix" \
+    "$HOME/software/executables" \
+    "$HOME/software"
 
 #$HOME/repos:\
 #/opt/homebrew/opt/qt@5/bin:\ #for pip install pyqt5 to succeed
@@ -30,7 +34,10 @@ $PATH
 export HOMEBREW_PREFIX="/opt/homebrew"
 export HOMEBREW_CELLAR="/opt/homebrew/Cellar"
 export HOMEBREW_REPOSITORY="/opt/homebrew"
-export PATH="/opt/homebrew/bin:/opt/homebrew/sbin${PATH+:$PATH}"
+add_to_path "/opt/homebrew/bin" "/opt/homebrew/sbin"
+# MANPATH and INFOPATH deliberately keep an empty entry (the trailing colon on
+# MANPATH, the unset-INFOPATH fallback) which means "also search the system
+# defaults". add_to_path would drop that empty entry, so leave these manual.
 export MANPATH="/opt/homebrew/share/man${MANPATH+:$MANPATH}:"
 export INFOPATH="/opt/homebrew/share/info:${INFOPATH:-}"
 export DOTNET_ROOT="/opt/homebrew/opt/dotnet@9/libexec"
@@ -44,14 +51,13 @@ export DOTNET_ROOT="/opt/homebrew/opt/dotnet@9/libexec"
 #export PYTHONPATH=/opt/homebrew/lib/python3.10/site-packages${PYTHONPATH+:$PYTHONPATH}
 # Add graph-tools to PYTHONPATH. This path says python3.12 but it looks like
 # its backwards-compatible with older python versions.
-export PYTHONPATH=\
-/opt/homebrew/Cellar/graph-tool/2.92/lib/python3.13/site-packages\
-${PYTHONPATH+:$PYTHONPATH}
+add_to_path PYTHONPATH \
+    "/opt/homebrew/Cellar/graph-tool/2.92/lib/python3.13/site-packages"
 
 
 # elastix/transformix
-export LD_LIBRARY_PATH=$HOME/software/elastix-5.2.0-mac/lib${LD_LIBRARY_PATH+:$LD_LIBRARY_PATH}
-export DYLD_LIBRARY_PATH=$HOME/software/elastix-5.2.0-mac/lib${DYLD_LIBRARY_PATH+:$DYLD_LIBRARY_PATH}
+add_to_path LD_LIBRARY_PATH "$HOME/software/elastix-5.2.0-mac/lib"
+add_to_path DYLD_LIBRARY_PATH "$HOME/software/elastix-5.2.0-mac/lib"
 
 
 # PATH for the Google Cloud SDK.
