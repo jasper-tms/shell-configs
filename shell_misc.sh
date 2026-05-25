@@ -19,6 +19,22 @@ if ${IS_MAC:=false}; then
     export LSCOLORS=ExGxBxDxCxEgEdxbxgxcxd
 fi
 
+# GNU screen before version 5.0 cannot render 24-bit truecolor. When
+# COLORTERM=truecolor is inherited from the outer terminal, applications that
+# honor it (for example Claude Code) emit truecolor background sequences that
+# these older screen versions mangle into reverse-video boxes (dark text on a
+# light background). Inside such a session, drop the hint so those applications
+# fall back to 256-color, which screen renders correctly. screen 5.0 and later
+# support truecolor, so leave COLORTERM untouched there. The $STY check ensures
+# this only runs inside screen, leaving normal terminals alone.
+if [ -n "$STY" ] && command -v screen > /dev/null 2>&1; then
+    screen_major_version=$(screen --version 2>/dev/null | sed -n 's/^Screen version \([0-9][0-9]*\).*/\1/p')
+    if [ -n "$screen_major_version" ] && [ "$screen_major_version" -lt 5 ]; then
+        unset COLORTERM
+    fi
+    unset screen_major_version
+fi
+
 # Before setting LC_COLLATE=C, the default collation is UTF-8 which does this:
 # $ ls -1
 # apple
