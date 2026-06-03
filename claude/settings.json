@@ -197,6 +197,8 @@
       "Bash(* .env *)"
     ],
     "ask": [
+      "Bash(*API_KEY*)",
+      "Bash(*api_key*)",
       "Bash(git push)",
       "Bash(git push *)",
       "Bash(chmod *-R*)",
