@@ -10,7 +10,7 @@
 # Session naming (auto-numbered from existing claude-remote-N screens):
 #   - screen name:     claude-remote-N
 #   - --name (RC UI):  <prefix>-N, where <prefix> is machine-dependent
-#                      (see the hostname case block below)
+#                      (see the prefix-detection block below)
 #
 # Usage:
 #   ./launch-new-claude-remote-control.sh [initial-prompt]
@@ -23,15 +23,22 @@ set -euo pipefail
 
 INITIAL_PROMPT="${1:-Wait for further instructions}"
 
-# Pick the Remote Control display-name prefix for this machine, keyed on the
-# short hostname. Add a case per machine you use. Unrecognized machines fall
-# back to the lowercased short hostname (tr, not ${var,,}, for Bash 3.2/macOS).
-HOST_SHORT="$(hostname -s)"
-case "$HOST_SHORT" in
-    Jaspers-Mac*) PREFIX="mac" ;;
-    jaspberrypi)  PREFIX="rpi" ;;
-    *)            PREFIX="$(printf '%s' "$HOST_SHORT" | tr '[:upper:]' '[:lower:]')" ;;
-esac
+# Pick the Remote Control display-name prefix for this machine:
+# First check RUNPOD_POD_ID to see if we're a Runpod node.
+# If not, check `hostname` to determine which machine we are.
+# Unrecognized machines fall back to the lowercased short
+# hostname (tr, not ${var,,}, for Bash 3.2/macOS).
+# Extend this section manually as new computers are added.
+if [ -n "${RUNPOD_POD_ID:-}" ]; then
+    PREFIX="runpod"
+else
+    HOST_SHORT="$(hostname -s)"
+    case "$HOST_SHORT" in
+        Jaspers-Mac*) PREFIX="mac" ;;
+        jaspberrypi)  PREFIX="rpi" ;;
+        *)            PREFIX="$(printf '%s' "$HOST_SHORT" | tr '[:upper:]' '[:lower:]')" ;;
+    esac
+fi
 
 # Resolve work directory: canonicalize so the path used as a key in
 # ~/.claude.json matches what claude itself will use at startup.
