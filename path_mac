@@ -18,7 +18,8 @@ add_to_path \
     "$HOME/.antigravity/antigravity/bin" \
     "$HOME/.dotnet/tools" \
     "$HOME/repos/jasper-tms/npimage/scripts" \
-    "$HOME/repos/action-analytics/runpod-config/pods/" \
+    "$HOME/repos/movement-vision/runpod-config/pods" \
+    "$HOME/repos/movement-vision/SportViewer" \
     "$HOME/repos/nely/scapeio/scripts" \
     "$HOME/repos/nely/DeMotion5D" \
     "$HOME/Library/Python/3.12/bin" \
