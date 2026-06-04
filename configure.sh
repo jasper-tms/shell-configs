@@ -12,6 +12,14 @@ else
     echo "Could not determine shell!"
 fi
 
+# Detect whether this shell is interactive, so the rest of this file can stay
+# quiet (no alias-loading messages, etc.) when sourced non-interactively - e.g.
+# at boot or from scripts. $- contains 'i' for interactive shells in bash and zsh.
+case $- in
+    *i*) export IS_INTERACTIVE=true ;;
+    *)   export IS_INTERACTIVE=false ;;
+esac
+
 if ${IS_BASH:=false}; then
     export SHELL_CONFIGS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 elif ${IS_ZSH:=false}; then
@@ -40,9 +48,9 @@ add_to_path "${SHELL_CONFIGS_DIR}/shell_scripts"
 source $SHELL_CONFIGS_DIR/aliases/general.sh
 for name in $(echo $LOAD_ALIASES); do
     if [ -e "$SHELL_CONFIGS_DIR/aliases/$name.sh" ]; then
-        echo "Loading $name aliases"
+        ${IS_INTERACTIVE:=false} && echo "Loading $name aliases"
         source "$SHELL_CONFIGS_DIR/aliases/$name.sh"
     else
-        echo "No aliases file to load: $SHELL_CONFIGS_DIR/aliases/$name.sh"
+        ${IS_INTERACTIVE:=false} && echo "No aliases file to load: $SHELL_CONFIGS_DIR/aliases/$name.sh"
     fi
 done
