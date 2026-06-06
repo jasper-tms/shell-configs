@@ -1,5 +1,5 @@
 " To use this, make `~/.config/nvim/init.vim` a link to this file
-" mkdir -p ~/.config/nvim; ln -sf $(realpath nvim-init.vim) ~/.config/nvim/init.vim
+" mkdir -p ~/.config/nvim; ln -sf "$(realpath nvim-init.vim)" ~/.config/nvim/init.vim
 
 
 " --- General settings -------------------------------------------------------
@@ -28,6 +28,10 @@ augroup init_ftypes
   autocmd BufNewFile *.py call append(0, ['#!/usr/bin/env python3', ''])
   " Hard wrap lines after 79 characters in python files
   autocmd FileType python setlocal textwidth=79
+  " Hard wrap lines after 72 characters in markdown files. Also remove the
+  " 'l' flag that markdown's ftplugin adds, so that lines which are already
+  " longer than textwidth get wrapped as you keep typing on them.
+  autocmd FileType markdown setlocal textwidth=72 formatoptions-=l
   " Write actual tab characters, not 4 spaces, in .tsv files
   autocmd BufRead,BufNewFile *.tsv setlocal noexpandtab
 augroup END
