@@ -79,6 +79,22 @@ SCREEN_NAME="claude-remote-${N}"
 RC_DISPLAY_NAME="${PREFIX}-${N}"
 
 cd "$WORK_DIR"
+
+# GNU screen before version 5.0 cannot render 24-bit truecolor: when
+# COLORTERM=truecolor is set, claude emits truecolor background sequences that
+# these older screen versions mangle into reverse-video boxes (dark text on a
+# light background). screen launches claude directly below, with no intervening
+# shell to source shell_misc.sh (which performs this same unset for interactive
+# in-screen shells), so we must drop the hint here in the environment that
+# screen, and therefore claude, inherits. claude then falls back to 256-color,
+# which screen renders correctly. screen 5.0 and later support truecolor, so
+# leave COLORTERM untouched there.
+screen_major_version="$(screen --version 2>/dev/null | sed -n 's/^Screen version \([0-9][0-9]*\).*/\1/p')"
+if [ -n "$screen_major_version" ] && [ "$screen_major_version" -lt 5 ]; then
+    unset COLORTERM
+fi
+unset screen_major_version
+
 screen -dmS "$SCREEN_NAME" \
     claude --remote-control --name "$RC_DISPLAY_NAME" \
            --permission-mode auto \
