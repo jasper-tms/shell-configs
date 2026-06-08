@@ -14,12 +14,9 @@ alias dc=cd  # Resist typos
 alias c='clear'
 if ${IS_LINUX:=false}; then
     alias o='xdg-open'
-else
-    alias o='open'
-fi
-if ${IS_LINUX:=false}; then
     alias copy='xclip -selection clipboard'
-else
+elif ${IS_MAC:=false}; then
+    alias o='open'
     alias copy='pbcopy'
 fi
 
