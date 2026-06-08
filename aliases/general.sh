@@ -9,6 +9,7 @@ alias vir='vi -- "$(ls -tp | grep -v "/$" | head -1)"'
 alias vio='vi -- "$(ls -tp | grep -v "/$" | tail -1)"'
 alias cdr='cd -- "$(ls -td -- */ | head -1)"'
 alias cdo='cd -- "$(ls -td -- */ | tail -1)"'
+alias cdrealpath='cd -- "$(realpath .)"'
 alias dc=cd  # Resist typos
 alias c='clear'
 if ${IS_LINUX:=false}; then
