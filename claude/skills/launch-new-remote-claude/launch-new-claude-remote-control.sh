@@ -36,6 +36,7 @@ else
     case "$HOST_SHORT" in
         Jaspers-Mac*) PREFIX="mac" ;;
         jaspberrypi)  PREFIX="rpi" ;;
+        thorax)       PREFIX="thorax" ;;
         *)            PREFIX="$(printf '%s' "$HOST_SHORT" | tr '[:upper:]' '[:lower:]')" ;;
     esac
 fi
