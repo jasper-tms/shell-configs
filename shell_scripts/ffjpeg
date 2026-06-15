@@ -4,11 +4,16 @@ args=""
 inputname=""
 fake=false
 q=1
+metadata=true
 while [ "$#" -gt 0 ]; do
     case "$1" in
         -f|--fake)
             echo "Fake is true"
             fake=true
+            shift
+            ;;
+        --no-metadata)
+            metadata=false
             shift
             ;;
         -q|--quality|-c|-compression|--compression)
@@ -34,14 +39,50 @@ done
 
 outputname="${inputname%.*}.q${q}.jpg"
 
+# ffmpeg cannot read or write EXIF in JPEG, so it always strips metadata
+# (location, datetime, camera make/model/lens, XMP) from the output. To
+# preserve it we copy every tag from the input onto the re-encoded output with
+# exiftool after encoding. This needs both that the user wants metadata
+# (default, disable with --no-metadata) and that exiftool is installed.
+copy_metadata=false
+if $metadata; then
+    if command -v exiftool > /dev/null 2>&1; then
+        copy_metadata=true
+    else
+        echo "ffjpeg: warning: exiftool not found, output will have no metadata." >&2
+        echo "ffjpeg: install it (brew install exiftool) or pass --no-metadata to silence this." >&2
+    fi
+fi
+
+# Rotation handling depends on whether we will copy metadata back:
+# - When we copy metadata, pass -noautorotate so ffmpeg leaves the pixels in
+#   their stored layout. We then copy the original EXIF Orientation tag back,
+#   which matches that layout. (Without -noautorotate ffmpeg would bake the
+#   rotation into the pixels AND we would copy a rotate tag on top, so an
+#   orientation-aware viewer double-rotates the image.)
+# - When we do NOT copy metadata, let ffmpeg autorotate (its default) so the
+#   rotation is baked into the pixels and the image still displays upright even
+#   though the output carries no Orientation tag.
+autorotate_flag=""
+if $copy_metadata; then
+    autorotate_flag="-noautorotate"
+fi
+
 if $fake; then
-    echo ffmpeg -i "$inputname" \
+    echo ffmpeg $autorotate_flag -i "$inputname" \
                 -q $q \
                 $args \
                 "$outputname"
+    if $copy_metadata; then
+        echo exiftool -TagsFromFile "$inputname" -all:all -overwrite_original "$outputname"
+    fi
     exit 0
 fi
-ffmpeg -i "$inputname" \
+ffmpeg $autorotate_flag -i "$inputname" \
        -q $q \
        $args \
        "$outputname"
+
+if $copy_metadata; then
+    exiftool -TagsFromFile "$inputname" -all:all -overwrite_original "$outputname"
+fi

@@ -4,11 +4,16 @@ args=""
 inputname=""
 fake=false
 crf=28
+metadata=true
 while [ "$#" -gt 0 ]; do
     case "$1" in
         -f|--fake)
             echo "Fake is true"
             fake=true
+            shift
+            ;;
+        --no-metadata)
+            metadata=false
             shift
             ;;
         -q|--quality|-c|-crf|--crf)
@@ -34,12 +39,23 @@ done
 
 outputname="${inputname%.*}.hevc-crf${crf}.mp4"
 
+# Preserve container metadata (creation time, GPS location, camera make/model,
+# etc.) by default. -map_metadata 0 copies the global metadata from the input,
+# and -movflags use_metadata_tags is required for the mp4 muxer to also write
+# the Apple com.apple.quicktime.* keys (GPS location, make, model) rather than
+# silently dropping them. Disable with --no-metadata.
+metadata_args=""
+if $metadata; then
+    metadata_args="-map_metadata 0 -movflags use_metadata_tags"
+fi
+
 if $fake; then
     echo ffmpeg -i "$inputname" \
                 -c:v libx265 \
                 -tag:v hvc1 \
                 -colorspace bt2020nc -color_primaries bt2020 -color_trc arib-std-b67 \
                 -crf $crf \
+                $metadata_args \
                 $args \
                 "$outputname"
     exit 0
@@ -49,5 +65,6 @@ ffmpeg -i "$inputname" \
        -tag:v hvc1 \
        -colorspace bt2020nc -color_primaries bt2020 -color_trc arib-std-b67 \
        -crf $crf \
+       $metadata_args \
        $args \
        "$outputname"
