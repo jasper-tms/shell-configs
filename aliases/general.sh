@@ -28,6 +28,7 @@ alias lo='ls -Flht' #Oldest edit at the bottom
 alias lod='ls -lhtd -- */' #Oldest edit at the bottom, folders only
 alias lt='ls -Flhtr' #Most recent edit at the bottom
 alias ltd='ls -lhtrd -- */' #Most recent edit at the bottom, folders only
+alias lz='ls -lShr --color=always | grep -v "^d"' #Largest at the bottom, files only (no folders); --color=always keeps colors through the grep pipe
 if ${IS_LINUX:=false}; then #-v options below are linux-specific
     alias lv='ls -Flhv' #sorts output numerically instead of by string order
     alias lvd='ls -lhvd -- */' #sorts output numerically instead of by string order, folders only
