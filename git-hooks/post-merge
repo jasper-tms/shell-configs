@@ -1,0 +1,17 @@
+#!/bin/bash
+# Global git hook (see: git config --global core.hooksPath).
+# Refreshes the auto-generated [tool.uv.sources] block, then chains to any
+# repo-local post-merge hook a tool like pre-commit/husky may have
+# installed directly into .git/hooks (which core.hooksPath would otherwise
+# shadow).
+set -e
+
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+if [ -f "$repo_root/pyproject.toml" ]; then
+    refresh-uv-editables "$repo_root/pyproject.toml" || true
+fi
+
+local_hook="$(git rev-parse --git-dir)/hooks/post-merge"
+if [ -x "$local_hook" ]; then
+    exec "$local_hook" "$@"
+fi
