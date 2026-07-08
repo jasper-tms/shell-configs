@@ -12,17 +12,63 @@ won't have uv installed for a while yet, so several choices below trade
 uv-native convenience for compatibility on purpose. Don't "fix" these back
 toward the pure-uv way without re-reading the reasoning.
 
+## First decision: can you assume every user of this script has uv?
+
+The shebang/interpreter choice hinges on whether uv is guaranteed present
+wherever the script runs — NOT on whether you ship it. A tool you hand to
+others can still be Category 1 if its whole audience is uv users (e.g. a uv
+ecosystem tool, or one that only makes sense alongside uv): anyone running it
+will have uv, so keep the uv shebang. Sort every script into one of two
+categories first — the rest of the advice flows from which one it is.
+
+**Category 1 — uv is guaranteed on every machine that runs it** (your own
+tools, git hooks/filters, cron jobs, *and* any tool you ship whose users all
+have uv anyway). Make it *just work by bare name*:
+
+- Shebang `#!/usr/bin/env -S uv run --script` (needs `env -S`, i.e.
+  coreutils >= 8.30), **plus** a PEP 723 header declaring `requires-python`
+  (and any deps). The header is not optional: the shebang only routes
+  execution through `uv run`, while the header is what makes uv provision the
+  *right* interpreter. Omit it and uv may run under the ambient `python3`,
+  so a script using newer-than-ambient stdlib (e.g. `tomllib` on a 3.10 box)
+  still hits `ModuleNotFoundError`.
+- `chmod +x` it — here you *want* direct/bare-name invocation (the opposite
+  of the "don't chmod" forcing-function below, which assumes a classic
+  shebang).
+- This is the only robust option for scripts invoked by other machinery
+  (git hooks/filters, cron): those exec the file, and the kernel honors the
+  shebang — so uv kicks in even though you never get to type `uv run` in
+  front of them. A classic `#!/usr/bin/env python3` would instead run them
+  under whatever ambient python the machine happens to have.
+- Cost: each run is one `uv run --script` (~50-70 ms warm). For a git
+  filter/hook tool, `git status` is unaffected (git spawns no filter for it);
+  only operations that read/write the filtered file — `git add`, commit,
+  checkout, merge — pay ~one invocation each.
+
+**Category 2 — you can't assume uv is present** (a script for a general
+audience who may use conda, venv, poetry, or system python). These must work
+without assuming uv at runtime:
+
+- Keep the classic shebang `#!/usr/bin/env python3`.
+- Be ambient-safe: target the lowest interpreter you support, and get deps
+  from normal packaging (`[project.dependencies]` if it ships inside a
+  package) rather than assuming uv resolves them.
+- A PEP 723 header is still fine to add — it's inert (just a comment) to
+  non-uv users but lets uv users get an isolated env. Just don't *rely* on
+  it being honored.
+- The `uv run` habit and the "don't chmod as a forcing function" trick below
+  apply here (and to any Category 1 script you deliberately keep on a classic
+  shebang).
+
 ## Standalone scripts (e.g. a script living outside any project directory)
 
 - Create/manage dependencies with inline PEP 723 metadata:
   `uv init --script foo.py --python 3.12` to scaffold the header, then
   `uv add --script foo.py pkg1 pkg2` to add dependencies.
-- **Keep the classic shebang, `#!/usr/bin/env python3`.** Do NOT switch it to
-  `#!/usr/bin/env -S uv run --script`, even though that's uv's own
-  recommended pattern for direct-executability — it silently breaks
-  `./foo.py` on any machine without uv installed. The inline metadata
-  comment block itself is inert to non-uv users (it's just a comment), so
-  adding it never breaks anything on its own; only the shebang choice does.
+- **Shebang: decide via the category above** (classic `#!/usr/bin/env
+  python3` for Category 2, uv shebang + `requires-python` header for Category
+  1). Either way the PEP 723 metadata block itself is inert to non-uv users
+  (just a comment); only the shebang choice can break `./foo.py` for them.
 - Habit: invoke your own scripts via `uv run foo.py` (or an alias, e.g.
   `alias ur='uv run'` — check `command -v ur` first for collisions), not
   `./foo.py`. The alias pays off broadly since `uv run` is also the verb for
@@ -40,28 +86,19 @@ toward the pure-uv way without re-reading the reasoning.
   uv-only regardless of the shebang decision above.
 - **`[tool.uv.sources]`/editable-path overrides can only live in a
   `pyproject.toml` (or a script's own inline header) — never in any
-  `uv.toml`, project-local or global (`~/.config/uv/uv.toml`).** Verified
-  empirically (uv 0.11.27): uv hard-errors with `sources is only applicable
-  in the context of a project, and should be placed in a pyproject.toml file
-  instead` if you try either. So there is no built-in way to keep one
-  central, shared file mapping locally-cloned packages to editable paths
-  across many separate project repos — each consuming project's own
-  `pyproject.toml` must carry the override, meaning a personal absolute path
-  (e.g. `/home/phelps/repos/jasper-tms/npimage`) would otherwise end up baked
-  into a file that's normally committed and shared. Don't push that hunk.
-  If you want this centralized despite the lack of native support, the
-  practical options (in order of effort) are: (a) keep one plain personal
-  registry file uv never reads (name → clone path) and a small script that
-  stamps the `[tool.uv.sources]` block into a given project's
-  `pyproject.toml` on demand — treat the stamped hunk as a local-only edit
-  you regenerate after every pull, never commit, and guard with a pre-commit
-  hook that greps the diff for your home directory path; or (b) drop
-  `path`/`editable` entirely and run a personal local package index (e.g. a
-  `--find-links` wheel directory) referenced via the global `uv.toml`'s
-  `index-url`/`extra-index-url` (which *is* allowed globally, unlike
-  `sources`) — at the cost of losing live-editable semantics. Neither is a
-  shipped uv feature; uv **workspaces** solve the adjacent case of sibling
-  packages living in the *same* repo, but not independently-cloned repos.
+  `uv.toml`, project-local or global (`~/.config/uv/uv.toml`).** uv 0.11.27
+  hard-errors: `sources is only applicable in the context of a project, and
+  should be placed in a pyproject.toml file instead`. So there is no central,
+  shared file mapping locally-cloned packages to editable paths across repos
+  — each consuming project's own `pyproject.toml` must carry the override,
+  which would otherwise bake a personal absolute path (e.g.
+  `/home/phelps/repos/jasper-tms/npimage`) into a normally-committed file.
+  Don't push that hunk. The "Personal editable-install registry" section
+  below builds a git filter/hook system to keep the block local-only; the
+  alternative is a personal wheel index (`--find-links`) via the global
+  `uv.toml`'s `extra-index-url` (allowed globally, unlike `sources`), at the
+  cost of live-editable semantics. uv **workspaces** solve only the
+  sibling-packages-in-one-repo case, not independently-cloned repos.
 
 ## Real installable packages (pyproject.toml projects)
 
@@ -99,12 +136,10 @@ that aren't worth keeping in this skill body.
 Solves: many separate downstream project repos each wanting to depend on a
 package you have cloned locally (e.g. `npimage`) in editable mode, without
 hand-writing a personal absolute path into each project's committed
-`pyproject.toml`. Verified empirically (uv 0.11.27) that `[tool.uv.sources]`
-can *only* live in `pyproject.toml` — never in any `uv.toml`, project-local
-or global (`~/.config/uv/uv.toml`); uv hard-errors with `sources is only
-applicable in the context of a project`. So there is no config-layering
-escape hatch — this system builds one out of git's own filter/hook
-mechanisms instead. Pieces, all global (no per-repo setup):
+`pyproject.toml`. Since `[tool.uv.sources]` can only live in a `pyproject.toml`
+(see above), there's no global-config escape hatch — so this system builds
+one out of git's own filter/hook mechanisms instead. Pieces, all global (no
+per-repo setup):
 
 - `~/.config/uv/local-packages.toml` — the registry. Not read by uv itself.
   Top-level `personal-remotes` array lists which GitHub accounts/orgs count
@@ -134,6 +169,17 @@ mechanisms instead. Pieces, all global (no per-repo setup):
   refresh the current repo's `pyproject.toml` in place; `--clean`/`--smudge`
   read/write via stdin/stdout for git filter use; `--register`/
   `--fresh-clone` add/update a registry entry (see below).
+- **Index-stat reconcile (keeps `git status` quiet).** Because the block
+  lives only in the working tree, `git status` — which compares stat, not
+  filtered content — would flag `pyproject.toml` as perpetually modified even
+  though `git diff` (which runs the `clean` filter) sees no change, and only
+  a manual `git add` clears it. So after an in-place rewrite, refresh
+  re-stages the file itself to re-cache git's stat. This is gated to a
+  provable no-op: it stages only when the block-stripped working tree already
+  matches the index blob, so a genuine unstaged edit to `pyproject.toml` is
+  never swept into staging. Runs only on the no-args/hook path — never under
+  `--clean`/`--smudge` (which execute with the index locked) — and any
+  failure (not a repo, untracked, no git) is swallowed.
 - `git-hooks/{post-checkout,post-merge,post-commit}` at this repo's root,
   wired up via a **global** `core.hooksPath` (`git config --global
   core.hooksPath .../shell-configs/git-hooks`) so every repo on the machine
