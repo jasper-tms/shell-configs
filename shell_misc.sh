@@ -16,7 +16,9 @@ fi
 if ${IS_MAC:=false}; then
     # From https://apple.stackexchange.com/questions/33677/how-can-i-configure-mac-terminal-to-have-color-ls-output
     export CLICOLOR=1
-    export LSCOLORS=ExGxBxDxCxEgEdxbxgxcxd
+    # Pos 1 = directory (Gx = bold cyan), pos 2 = symlink (Dx = bold yellow),
+    # pos 11 = other-writable dir (Hg = bold white on cyan)
+    export LSCOLORS=GxDxBxDxCxEgEdxbxgxcHg
 fi
 
 # GNU screen before version 5.0 cannot render 24-bit truecolor. When
