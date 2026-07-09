@@ -5,6 +5,7 @@ inputname=""
 fake=false
 q=1
 metadata=true
+hdr_keep=false
 while [ "$#" -gt 0 ]; do
     case "$1" in
         -f|--fake)
@@ -14,6 +15,10 @@ while [ "$#" -gt 0 ]; do
             ;;
         --no-metadata)
             metadata=false
+            shift
+            ;;
+        -hdr|--hdr)
+            hdr_keep=true
             shift
             ;;
         -q|--quality|-c|-compression|--compression)
@@ -54,6 +59,61 @@ if $metadata; then
     fi
 fi
 
+# Color/format handling via sips (macOS only). Two situations need the input
+# rasterized to a plain PNG before ffmpeg encodes it:
+#
+# 1. HDR. iPhone (and other) HDR photos carry a Display P3 + PQ (or HLG) ICC
+#    profile plus an embedded gain map. ffmpeg copies that profile through and
+#    stores the raw PQ-encoded pixels without tone mapping, so only fully
+#    color-managed apps (e.g. Preview) render them correctly; the many viewers
+#    that take a faster, PQ-unaware path (Finder/Quick Look thumbnails, browsers,
+#    Dropbox, Windows, Android, email) show blown-out, miscolored garbage. We use
+#    macOS ColorSync (via sips) to tone map such inputs to a plain sRGB
+#    intermediate, so the correct colors are baked into the pixels and every
+#    viewer agrees. Pass -hdr/--hdr to keep the original HDR pixels and profile.
+#
+# 2. Tiled HEIC/HEIF grids. Modern iPhone (and other) HEIF photos do not store
+#    one image; they store a "grid" derived item that composites dozens of small
+#    (e.g. 512x512) HEVC tiles into the full picture. ffmpeg's HEIF demuxer does
+#    not resolve the grid derivation -- it decodes only the first tile -- so a
+#    multi-megapixel photo silently becomes a single 512x512 corner. sips (via
+#    macOS Image I/O) composites the grid correctly, so we rasterize HEIC/HEIF
+#    inputs to a full-resolution PNG and encode from that. HEICs are also usually
+#    wide-gamut Display P3, and ffmpeg drops the ICC profile while exiftool does
+#    not reliably copy it back, leaving Display P3 pixels in an untagged (assumed
+#    sRGB) JPEG that non-color-managed viewers render with shifted colors. So, as
+#    in the HDR case, we tone map to sRGB here too, baking correct colors in.
+#
+# Both require sips (macOS); on other platforms inputs pass through to ffmpeg
+# unchanged (so tiled HEICs may still exhibit the single-tile bug there). Passing
+# -hdr/--hdr disables all sips preprocessing, including the grid composite.
+# The sips preprocessing pass is identical for both cases (rasterize to a plain
+# sRGB PNG via --matchTo); only the log messages differ. So we track a single
+# sips_pass flag plus a sips_reason ("hdr" or "heic") that selects the wording.
+srgb_profile="/System/Library/ColorSync/Profiles/sRGB Profile.icc"
+sips_pass=false
+sips_reason=""
+if ! $hdr_keep && command -v sips > /dev/null 2>&1; then
+    if sips -g profile "$inputname" 2>/dev/null | grep -qiE 'PQ|HLG'; then
+        sips_pass=true
+        sips_reason="hdr"
+    else
+        case "$(printf '%s' "${inputname##*.}" | tr 'A-Z' 'a-z')" in
+            heic|heif|hif) sips_pass=true; sips_reason="heic" ;;
+        esac
+    fi
+fi
+
+# When we preprocess with sips (HDR tone map or HEIC grid composite), encode from
+# the rasterized PNG intermediate instead of the original. Clean it up on exit.
+encode_input="$inputname"
+tmp_png=""
+if $sips_pass; then
+    tmp_png="${TMPDIR:-/tmp}/ffjpeg.$$.png"
+    encode_input="$tmp_png"
+fi
+trap '[ -n "$tmp_png" ] && rm -f "$tmp_png"' EXIT
+
 # Rotation handling depends on whether we will copy metadata back:
 # - When we copy metadata, pass -noautorotate so ffmpeg leaves the pixels in
 #   their stored layout. We then copy the original EXIF Orientation tag back,
@@ -63,26 +123,99 @@ fi
 # - When we do NOT copy metadata, let ffmpeg autorotate (its default) so the
 #   rotation is baked into the pixels and the image still displays upright even
 #   though the output carries no Orientation tag.
+# Note: in the sips-rasterized paths (HDR tone map or HEIC grid composite) we
+# bake an upright image ourselves via the orientation_ops below, so the
+# intermediate PNG already has upright pixels; we therefore exclude Orientation
+# from the metadata copy to avoid double-rotating.
 autorotate_flag=""
 if $copy_metadata; then
     autorotate_flag="-noautorotate"
 fi
 
+# Bake the stored EXIF orientation into upright pixels for the sips-rasterized
+# paths. Contrary to a common assumption, sips does NOT bake rotation when it
+# converts to PNG -- it copies the original orientation tag onto the PNG, which
+# ffmpeg then ignores (ffmpeg only autorotates from JPEG/TIFF EXIF, not PNG). So
+# we apply explicit sips rotate/flip operations derived from the source
+# orientation, and exclude Orientation from the metadata copy below (the pixels
+# are already upright; re-applying the tag would rotate a second time). Reading
+# the orientation needs exiftool; without it we rasterize without baking, so a
+# rotated photo may come out sideways -- the same situation as the missing-
+# exiftool metadata warning above.
+orientation_ops=()
+if $sips_pass && command -v exiftool > /dev/null 2>&1; then
+    case "$(exiftool -n -s3 -Orientation "$inputname" 2>/dev/null)" in
+        2) orientation_ops=(-f horizontal) ;;
+        3) orientation_ops=(-r 180) ;;
+        4) orientation_ops=(-f vertical) ;;
+        5) orientation_ops=(-r 90 -f horizontal) ;;
+        6) orientation_ops=(-r 90) ;;
+        7) orientation_ops=(-r 90 -f vertical) ;;
+        8) orientation_ops=(-r 270) ;;
+    esac
+fi
+
+# Assemble the exiftool metadata-copy arguments. Both sips-rasterized paths tone
+# map to sRGB, so both exclude ICC_Profile (copying the original Display P3 / PQ
+# profile back over the sRGB output would re-create the very color problem we
+# just fixed) and exclude Orientation (the pixels are already baked upright).
+metadata_args=(-TagsFromFile "$inputname" -all:all)
+if $sips_pass; then
+    metadata_args+=(--icc_profile:all --Orientation)
+fi
+metadata_args+=(-overwrite_original "$outputname")
+
 if $fake; then
-    echo ffmpeg $autorotate_flag -i "$inputname" \
+    if $sips_pass; then
+        echo sips -s format png --matchTo "$srgb_profile" "$inputname" --out "$encode_input"
+    fi
+    if [ ${#orientation_ops[@]} -gt 0 ]; then
+        echo sips "${orientation_ops[@]}" "$encode_input"
+    fi
+    echo ffmpeg $autorotate_flag -i "$encode_input" \
                 -q $q \
                 $args \
                 "$outputname"
     if $copy_metadata; then
-        echo exiftool -TagsFromFile "$inputname" -all:all -overwrite_original "$outputname"
+        echo exiftool "${metadata_args[@]}"
     fi
     exit 0
 fi
-ffmpeg $autorotate_flag -i "$inputname" \
+
+if $sips_pass; then
+    case "$sips_reason" in
+        hdr)  echo "ffjpeg: HDR input detected; tone mapping to sRGB (pass -hdr to keep HDR)." >&2 ;;
+        heic) echo "ffjpeg: HEIC/HEIF input; rasterizing to sRGB via sips so tiled grids decode fully." >&2 ;;
+    esac
+    if ! sips -s format png --matchTo "$srgb_profile" "$inputname" --out "$encode_input" > /dev/null 2>&1; then
+        case "$sips_reason" in
+            hdr)  echo "ffjpeg: warning: sips HDR->sRGB conversion failed; encoding the" >&2
+                  echo "ffjpeg: original instead (output may look wrong in some viewers)." >&2 ;;
+            heic) echo "ffjpeg: warning: sips rasterization failed; encoding the original with" >&2
+                  echo "ffjpeg: ffmpeg instead (a tiled HEIC may decode to a single tile)." >&2 ;;
+        esac
+        # Fall all the way back to the pre-sips behavior: encode the original and
+        # restore its full metadata (including the orientation/ICC we would have
+        # otherwise excluded, since we no longer bake those into the pixels).
+        sips_pass=false
+        encode_input="$inputname"
+        orientation_ops=()
+        metadata_args=(-TagsFromFile "$inputname" -all:all -overwrite_original "$outputname")
+    fi
+fi
+
+# Bake the upright orientation into the rasterized PNG (see orientation_ops
+# above). Skipped automatically when a sips failure cleared orientation_ops.
+if [ ${#orientation_ops[@]} -gt 0 ]; then
+    sips "${orientation_ops[@]}" "$encode_input" > /dev/null 2>&1 \
+        || echo "ffjpeg: warning: sips orientation bake failed; image may be rotated." >&2
+fi
+
+ffmpeg $autorotate_flag -i "$encode_input" \
        -q $q \
        $args \
        "$outputname"
 
 if $copy_metadata; then
-    exiftool -TagsFromFile "$inputname" -all:all -overwrite_original "$outputname"
+    exiftool "${metadata_args[@]}"
 fi
