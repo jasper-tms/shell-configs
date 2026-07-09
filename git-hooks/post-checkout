@@ -1,24 +1,21 @@
 #!/bin/bash
-# Global git hook (see: git config --global core.hooksPath).
-# On a fresh clone (previous HEAD is all zeros), registers the repo in the
-# local-packages registry if it's one of your own (jasper-tms/NeLy-EPFL).
-# Always refreshes the auto-generated [tool.uv.sources] block, then chains
-# to any repo-local post-checkout hook a tool like pre-commit/husky may have
-# installed directly into .git/hooks (which core.hooksPath would otherwise
-# shadow).
-set -e
+# Global git hook dispatcher (see: git config --global core.hooksPath).
+# Runs every executable script in post-checkout.d/, in sorted order, then
+# chains to any repo-local post-checkout hook a tool like pre-commit/husky
+# may have installed directly into .git/hooks (which core.hooksPath would
+# otherwise shadow). Each real concern (uv-editables refresh, skills
+# symlinking, ...) lives in its own file under post-checkout.d/.
+hook_name="$(basename "$0")"
+hook_dir="$(cd "$(dirname "$0")" && pwd)/$hook_name.d"
 
-repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
-
-if [ "$1" = "0000000000000000000000000000000000000000" ]; then
-    refresh-uv-editables --fresh-clone "$repo_root" || true
+if [ -d "$hook_dir" ]; then
+    for script in "$hook_dir"/*; do
+        [ -x "$script" ] || continue
+        "$script" "$@" || echo "warning: $script failed (exit $?)" >&2
+    done
 fi
 
-if [ -f "$repo_root/pyproject.toml" ]; then
-    refresh-uv-editables "$repo_root/pyproject.toml" || true
-fi
-
-local_hook="$(git rev-parse --git-dir)/hooks/post-checkout"
+local_hook="$(git rev-parse --git-dir 2>/dev/null)/hooks/$hook_name"
 if [ -x "$local_hook" ]; then
     exec "$local_hook" "$@"
 fi

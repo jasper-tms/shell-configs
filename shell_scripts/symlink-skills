@@ -1,0 +1,76 @@
+#!/bin/bash
+# Finds directories named `skills` or `agent-skills` in a repo, and offers to
+# symlink any not-yet-linked skill inside them into ~/.claude/skills/, so
+# they become visible to Claude Code everywhere on this machine.
+#
+# Usage: symlink-skills [repo_root]
+#   repo_root defaults to the current repo's top level.
+#
+# Intended to be called both directly and from the post-checkout/post-merge
+# git hooks (see git-hooks/post-checkout.d/ and git-hooks/post-merge.d/).
+set -e
+
+repo_root="${1:-$(git rev-parse --show-toplevel 2>/dev/null)}"
+[ -n "$repo_root" ] || exit 0
+
+global_skills_dir="$HOME/.claude/skills"
+
+candidate_names=()
+candidate_paths=()
+while IFS= read -r -d '' skills_folder; do
+    for skill_dir in "$skills_folder"/*/; do
+        [ -f "${skill_dir}SKILL.md" ] || continue
+        skill_name="$(basename "$skill_dir")"
+        skill_path="$(cd "$skill_dir" && pwd)"
+        link_target="$global_skills_dir/$skill_name"
+        if [ -L "$link_target" ] && [ "$(readlink "$link_target")" = "$skill_path" ]; then
+            continue  # already linked
+        fi
+        candidate_names+=("$skill_name")
+        candidate_paths+=("$skill_path")
+    done
+done < <(find "$repo_root" -maxdepth 2 -type d \( -name skills -o -name agent-skills \) \
+             -not -path '*/.git/*' -print0)
+
+[ ${#candidate_names[@]} -gt 0 ] || exit 0
+
+if ! { exec 3<>/dev/tty; } 2>/dev/null; then
+    echo "symlink-skills: found ${#candidate_names[@]} unlinked skill(s) in $repo_root;" \
+         "run 'symlink-skills $repo_root' to link them" >&2
+    exit 0
+fi
+
+echo "Found skills in $repo_root not yet linked into $global_skills_dir:"
+for i in "${!candidate_names[@]}"; do
+    echo "  $((i + 1))) ${candidate_names[$i]}"
+done
+
+read -r -p "Symlink which ones? [a=all, n=none, or space-separated numbers]: " selection <&3
+exec 3>&-
+
+chosen_indices=()
+case "$selection" in
+    a|A|all) for i in "${!candidate_names[@]}"; do chosen_indices+=("$i"); done ;;
+    n|N|none|"") ;;
+    *)
+        for num in $selection; do
+            idx=$((num - 1))
+            if [ "$idx" -ge 0 ] && [ "$idx" -lt "${#candidate_names[@]}" ]; then
+                chosen_indices+=("$idx")
+            fi
+        done
+        ;;
+esac
+
+[ ${#chosen_indices[@]} -gt 0 ] || exit 0
+
+mkdir -p "$global_skills_dir"
+for idx in "${chosen_indices[@]}"; do
+    link_target="$global_skills_dir/${candidate_names[$idx]}"
+    if [ -e "$link_target" ] || [ -L "$link_target" ]; then
+        echo "Skipping ${candidate_names[$idx]}: $link_target already exists" >&2
+        continue
+    fi
+    ln -s "${candidate_paths[$idx]}" "$link_target"
+    echo "Linked ${candidate_names[$idx]} -> ${candidate_paths[$idx]}"
+done
