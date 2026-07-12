@@ -3,25 +3,134 @@
 # inside a detached GNU screen so it keeps running after this shell exits.
 #
 # Working directory:
-#   $CLAUDE_WORK_DIR if set, else ~/.claude/remote-sessions/
+#   --dir <path>, else $CLAUDE_WORK_DIR, else ~/.claude/remote-sessions/
 #   Created if missing. Workspace trust is pre-accepted for this directory
 #   in ~/.claude.json so the trust prompt never appears.
 #
 # Session naming (auto-numbered from existing claude-remote-N screens):
 #   - screen name:     claude-remote-N
-#   - --name (RC UI):  <prefix>-N, where <prefix> is machine-dependent
-#                      (see the prefix-detection block below)
+#   - --name (RC UI):  <prefix>-N[-<suffix>], where <prefix> is
+#                      machine-dependent (see the prefix-detection block
+#                      below) and <suffix> comes from --suffix, or is
+#                      derived from --model (e.g. rpi-2-fable).
 #
 # Usage:
-#   ./launch-new-claude-remote-control.sh [initial-prompt]
-#   CLAUDE_WORK_DIR=/some/path ./launch-new-claude-remote-control.sh [initial-prompt]
+#   ./launch-new-claude-remote-control.sh [options] [initial-prompt]
 #
-# initial-prompt is optional; defaults to "Wait for further instructions"
-# so the new session takes a first turn for proper initialization.
+# Options:
+#   -m, --model  <model>   Model to run. Accepts a full model id
+#                          (e.g. claude-fable-5) or a shorthand:
+#                            fable   -> claude-fable-5
+#                            opus    -> claude-opus-4-8
+#                            sonnet  -> claude-sonnet-5
+#                            haiku   -> claude-haiku-4-5-20251001
+#                          When set, a short label is appended to the
+#                          Remote Control display name (e.g. rpi-2-fable),
+#                          unless overridden by --suffix. With no --model,
+#                          the account default model is used and no suffix
+#                          is added.
+#   -s, --suffix <text>    Explicit suffix for the Remote Control display
+#                          name, appended after the auto-numbered name.
+#                          Overrides any model-derived suffix.
+#   -d, --dir    <path>    Working directory for the session. Overrides
+#                          $CLAUDE_WORK_DIR. Defaults to
+#                          ~/.claude/remote-sessions.
+#   -e, --effort <level>   Reasoning effort (default: high).
+#   -p, --prompt <text>    Initial prompt. May also be given as a trailing
+#                          positional argument. Defaults to
+#                          "Wait for further instructions" so the new
+#                          session takes a first turn for initialization.
+#   -h, --help             Show this help and exit.
+#
+# Examples:
+#   ./launch-new-claude-remote-control.sh
+#   ./launch-new-claude-remote-control.sh "Wait for further instructions"
+#   ./launch-new-claude-remote-control.sh --model fable "/developer Run a loop"
+#   ./launch-new-claude-remote-control.sh -m fable -d ~/repos/jasper-tms/swiss-table-tennis-chat
+#   CLAUDE_WORK_DIR=/some/path ./launch-new-claude-remote-control.sh
 
 set -euo pipefail
 
-INITIAL_PROMPT="${1:-Wait for further instructions}"
+usage() {
+    sed -n '2,50p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+# --- Defaults ---
+MODEL_INPUT=""
+NAME_SUFFIX=""
+SUFFIX_EXPLICIT=0
+EFFORT="high"
+PROMPT=""
+PROMPT_SET=0
+DIR_OVERRIDE=""
+
+# --- Parse options (order-independent flags plus one positional prompt) ---
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -m|--model)  MODEL_INPUT="${2:-}"; shift 2 ;;
+        -s|--suffix) NAME_SUFFIX="${2:-}"; SUFFIX_EXPLICIT=1; shift 2 ;;
+        -d|--dir)    DIR_OVERRIDE="${2:-}"; shift 2 ;;
+        -e|--effort) EFFORT="${2:-}"; shift 2 ;;
+        -p|--prompt) PROMPT="${2:-}"; PROMPT_SET=1; shift 2 ;;
+        -h|--help)   usage; exit 0 ;;
+        --)          shift
+                     if [ $# -gt 0 ]; then PROMPT="$1"; PROMPT_SET=1; shift; fi ;;
+        -*)          echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
+        *)           PROMPT="$1"; PROMPT_SET=1; shift ;;
+    esac
+done
+
+if [ "$PROMPT_SET" -eq 0 ]; then
+    PROMPT="Wait for further instructions"
+fi
+
+# --- Resolve model shorthand to (full id, short label) ---
+# An empty MODEL_INPUT leaves MODEL_ID empty: no --model flag is passed and
+# the account default model is used. Known shorthands expand to their full id
+# and contribute a short label used as the display-name suffix. An unrecognized
+# value is passed through verbatim, with a sanitized label derived from it.
+MODEL_ID=""
+MODEL_LABEL=""
+case "$MODEL_INPUT" in
+    "" )
+        : ;;
+    fable )
+        MODEL_ID="claude-fable-5"; MODEL_LABEL="fable" ;;
+    claude-fable-5 )
+        MODEL_ID="$MODEL_INPUT"; MODEL_LABEL="fable" ;;
+    opus )
+        MODEL_ID="claude-opus-4-8"; MODEL_LABEL="opus" ;;
+    claude-opus-4-8|"claude-opus-4-8[1m]" )
+        MODEL_ID="$MODEL_INPUT"; MODEL_LABEL="opus" ;;
+    sonnet )
+        MODEL_ID="claude-sonnet-5"; MODEL_LABEL="sonnet" ;;
+    claude-sonnet-5 )
+        MODEL_ID="$MODEL_INPUT"; MODEL_LABEL="sonnet" ;;
+    haiku )
+        MODEL_ID="claude-haiku-4-5-20251001"; MODEL_LABEL="haiku" ;;
+    claude-haiku-4-5-20251001 )
+        MODEL_ID="$MODEL_INPUT"; MODEL_LABEL="haiku" ;;
+    * )
+        MODEL_ID="$MODEL_INPUT"
+        MODEL_LABEL="$(printf '%s' "$MODEL_INPUT" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed -e 's/^claude-//' -e 's/[^a-z0-9]\{1,\}/-/g' \
+                  -e 's/^-//' -e 's/-$//')"
+        ;;
+esac
+
+# A model-derived label becomes the display-name suffix unless one was
+# given explicitly with --suffix.
+if [ "$SUFFIX_EXPLICIT" -eq 0 ] && [ -n "$MODEL_LABEL" ]; then
+    NAME_SUFFIX="$MODEL_LABEL"
+fi
+
+# Sanitize the suffix so it is safe inside a screen/RC display name.
+if [ -n "$NAME_SUFFIX" ]; then
+    NAME_SUFFIX="$(printf '%s' "$NAME_SUFFIX" \
+        | tr '[:upper:]' '[:lower:]' \
+        | sed -e 's/[^a-z0-9]\{1,\}/-/g' -e 's/^-//' -e 's/-$//')"
+fi
 
 # Pick the Remote Control display-name prefix for this machine:
 # First check RUNPOD_POD_ID to see if we're a Runpod node.
@@ -41,9 +150,10 @@ else
     esac
 fi
 
-# Resolve work directory: canonicalize so the path used as a key in
-# ~/.claude.json matches what claude itself will use at startup.
-WORK_DIR_RAW="${CLAUDE_WORK_DIR:-$HOME/.claude/remote-sessions}"
+# Resolve work directory: --dir wins, then $CLAUDE_WORK_DIR, then the default.
+# Canonicalize so the path used as a key in ~/.claude.json matches what
+# claude itself will use at startup.
+WORK_DIR_RAW="${DIR_OVERRIDE:-${CLAUDE_WORK_DIR:-$HOME/.claude/remote-sessions}}"
 mkdir -p "$WORK_DIR_RAW"
 WORK_DIR="$(cd "$WORK_DIR_RAW" && pwd -P)"
 
@@ -78,6 +188,9 @@ while printf '%s\n' "$existing_ns" | grep -qx "$N"; do
 done
 SCREEN_NAME="claude-remote-${N}"
 RC_DISPLAY_NAME="${PREFIX}-${N}"
+if [ -n "$NAME_SUFFIX" ]; then
+    RC_DISPLAY_NAME="${RC_DISPLAY_NAME}-${NAME_SUFFIX}"
+fi
 
 cd "$WORK_DIR"
 
@@ -96,16 +209,24 @@ if [ -n "$screen_major_version" ] && [ "$screen_major_version" -lt 5 ]; then
 fi
 unset screen_major_version
 
-screen -dmS "$SCREEN_NAME" \
-    claude --remote-control --name "$RC_DISPLAY_NAME" \
-           --permission-mode auto \
-           --effort high \
-           "$INITIAL_PROMPT"
+# Assemble the claude command. --model is only added when a model was
+# requested, so the default (no flag) behavior is unchanged.
+CLAUDE_ARGS=( --remote-control --name "$RC_DISPLAY_NAME" \
+              --permission-mode auto \
+              --effort "$EFFORT" )
+if [ -n "$MODEL_ID" ]; then
+    CLAUDE_ARGS+=( --model "$MODEL_ID" )
+fi
+CLAUDE_ARGS+=( "$PROMPT" )
+
+screen -dmS "$SCREEN_NAME" claude "${CLAUDE_ARGS[@]}"
 
 echo "Launched detached screen: $SCREEN_NAME"
 echo "  Working directory:   $WORK_DIR"
 echo "  Remote Control name: $RC_DISPLAY_NAME"
-echo "  Effort level:        high"
+echo "  Model:               ${MODEL_ID:-<account default>}"
+echo "  Effort level:        $EFFORT"
+echo "  Initial prompt:      $PROMPT"
 echo "  Attach with:         screen -r $SCREEN_NAME"
 echo "  List screens:        screen -ls"
 echo "  Kill session:        screen -S $SCREEN_NAME -X quit"
