@@ -47,7 +47,39 @@ Then wait ~3 seconds, recapture the screen, and confirm "Remote Control active" 
 
 ## Sending other input to a session
 
-Same mechanism — `screen -X stuff` with `\r` for Enter. Embed text the same way: `$'some text\r'`.
+Same mechanism — `screen -X stuff` with `\r` for Enter. Embed text the same way: `$'some text\r'`. Slash commands like `/compact` work fine as a single atomic `stuff` call — the split-call workaround below is only needed for `!` shell mode.
+
+### Sending a literal `!shell-command` (real shell mode, not a chat message)
+
+Claude Code's input box has a `!`-prefix shell mode: typing a bare `!` when the
+box is empty switches the box into shell mode (visible as a `! for shell mode`
+hint), and a command submitted from that mode runs directly in the visible
+terminal, with its raw output printed inline — not routed through the agent's
+own Bash tool call.
+
+Sending the whole thing as one atomic `stuff` string, e.g.
+`screen -S claude-remote-N -X stuff $'!some-command\r'`, does **not** reliably
+trigger this mode — the session may instead treat it as a chat message that
+happens to start with `!`, and the agent decides on its own whether/how to run
+it via its Bash tool (where you can't see raw stdout, and the auto-mode
+permission classifier applies to whatever it chooses to run — which may differ
+from what you sent).
+
+To land a real shell command, send the `!`, the command text, and the Enter
+key as **three separate `stuff` calls**, with a short pause between each so
+the UI has time to switch into shell mode before the rest arrives:
+
+```
+screen -S claude-remote-N -X stuff '!'
+sleep 1
+screen -S claude-remote-N -X stuff 'your command here'
+sleep 1
+screen -S claude-remote-N -X stuff $'\r'
+```
+
+Verify by capturing the screen afterward — a genuine shell-mode run shows the
+command echoed as `! your command here` followed by its raw output, directly
+in the transcript.
 
 ## Don't re-implement
 
