@@ -1,9 +1,11 @@
 ---
-name: launch-new-remote-claude
-description: Launch a new Claude Code Remote Control session in a detached screen on this machine. Use when the user asks to "start a new session", "spawn a new claude", "launch another remote-control instance", or similar.
+name: remote-claude-sessions
+description: Launch, verify, and drive Claude Code Remote Control sessions running in detached screens on this machine. Use when the user asks to "start a new session", "spawn a new claude", "launch another remote-control instance", to check on a session, or to send input (chat messages, slash commands, or `!` shell commands) to one.
 ---
 
-Run `~/.claude/skills/launch-new-remote-claude/launch-new-claude-remote-control.sh` via the Bash tool. The script:
+## Launching a new session
+
+Run `~/.claude/skills/remote-claude-sessions/launch-new-claude-remote-control.sh` via the Bash tool. The script:
 
 - Auto-numbers the session: screen `claude-remote-N`, RC display name `<prefix>-N`, where N is the lowest unused number among existing `claude-remote-N` screens. `<prefix>` is machine-dependent, chosen by a `hostname -s` case block in the script (`macbook` on this MacBook, `rpi` on the Pi); unrecognized machines fall back to the lowercased short hostname.
 - Uses `$CLAUDE_WORK_DIR` as the session's working directory, falling back to `~/.claude/remote-sessions/`. The directory is created if missing, and workspace trust is pre-accepted for it in `~/.claude.json`.
@@ -13,9 +15,9 @@ Run `~/.claude/skills/launch-new-remote-claude/launch-new-claude-remote-control.
 Pass an initial prompt as arg 1; override the work dir with `CLAUDE_WORK_DIR`:
 
 ```
-~/.claude/skills/launch-new-remote-claude/launch-new-claude-remote-control.sh "their prompt"
-CLAUDE_WORK_DIR=/path/to/project ~/.claude/skills/launch-new-remote-claude/launch-new-claude-remote-control.sh
-CLAUDE_WORK_DIR=/path/to/project ~/.claude/skills/launch-new-remote-claude/launch-new-claude-remote-control.sh "their prompt"
+~/.claude/skills/remote-claude-sessions/launch-new-claude-remote-control.sh "their prompt"
+CLAUDE_WORK_DIR=/path/to/project ~/.claude/skills/remote-claude-sessions/launch-new-claude-remote-control.sh
+CLAUDE_WORK_DIR=/path/to/project ~/.claude/skills/remote-claude-sessions/launch-new-claude-remote-control.sh "their prompt"
 ```
 
 ## Required: verify the new session before reporting success
@@ -39,9 +41,7 @@ After launching, you MUST confirm the new session is at the main UI (not stalled
 
 Option 1 ("Yes, I trust this folder") is pre-selected. Send Enter using `\r` (carriage return — `\n` does NOT work):
 
-```
-screen -S claude-remote-N -X stuff $'\r'
-```
+    screen -S claude-remote-N -X stuff $'\r'
 
 Then wait ~3 seconds, recapture the screen, and confirm "Remote Control active" appears before reporting success.
 
@@ -59,7 +59,7 @@ own Bash tool call.
 
 Sending the whole thing as one atomic `stuff` string, e.g.
 `screen -S claude-remote-N -X stuff $'!some-command\r'`, does **not** reliably
-trigger this mode — the session may instead treat it as a chat message that
+trigger this mode — the session usually treats it as a chat message that
 happens to start with `!`, and the agent decides on its own whether/how to run
 it via its Bash tool (where you can't see raw stdout, and the auto-mode
 permission classifier applies to whatever it chooses to run — which may differ
