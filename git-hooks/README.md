@@ -29,7 +29,7 @@ adding a new one is just a matter of dropping in an executable script.
 
 - `post-checkout.d/20-symlink-skills.sh`
   Offers to symlink any not-yet-linked Claude skills found in the repo's
-  `skills/` or `agent-skills/` folders into `~/.claude/skills/`.
+  `skills/` or `agent-skills/` folders into Claude Code's global skills folder.
 
 - `post-commit.d/10-refresh-uv-editables.sh`
   Re-adds the auto-generated `[tool.uv.sources]` block to the working tree after

@@ -4,7 +4,16 @@
 # or run the commands yourself.
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd -P)"
-CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+
+# Where Claude reads its config from: $CLAUDE_CONFIG_DIR (Claude's own variable)
+# if set, else the home Claude runs under. That home is $CLAUDE_HOME on machines
+# that launch Claude with an overridden HOME (see runpod-config/pods/pod_init.sh),
+# and plain $HOME everywhere else.
+CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-${CLAUDE_HOME:-$HOME}/.claude}"
+
+# Make sure the config dir exists before we try to symlink into it.
+mkdir -p "$CLAUDE_DIR"
+echo "Configuring Claude in $CLAUDE_DIR"
 
 # Symlink settings.json
 ln -snvf "$SCRIPT_DIR/settings.json" "$CLAUDE_DIR/settings.json"

@@ -3,9 +3,10 @@
 # inside a detached GNU screen so it keeps running after this shell exits.
 #
 # Working directory:
-#   --dir <path>, else $CLAUDE_WORK_DIR, else ~/.claude/remote-sessions/
+#   --dir <path>, else $CLAUDE_WORK_DIR, else <claude config dir>/remote-sessions/
 #   Created if missing. Workspace trust is pre-accepted for this directory
-#   in ~/.claude.json so the trust prompt never appears.
+#   in the Claude config dir's .claude.json so the trust prompt never appears.
+#   See the claude-home resolution block below for how that dir is located.
 #
 # Session naming (auto-numbered from existing claude-remote-N screens):
 #   - screen name:     claude-remote-N
@@ -34,7 +35,7 @@
 #                          Overrides any model-derived suffix.
 #   -d, --dir    <path>    Working directory for the session. Overrides
 #                          $CLAUDE_WORK_DIR. Defaults to
-#                          ~/.claude/remote-sessions.
+#                          <claude config dir>/remote-sessions.
 #   -e, --effort <level>   Reasoning effort (default: high).
 #   -p, --prompt <text>    Initial prompt. May also be given as a trailing
 #                          positional argument. Defaults to
@@ -150,15 +151,31 @@ else
     esac
 fi
 
+# Run claude under $CLAUDE_HOME where defined, else our own $HOME. Exported so
+# the claude we screen-launch below inherits it, rather than relying on our caller.
+claude_home="${CLAUDE_HOME:-$HOME}"
+export HOME="$claude_home"
+
+# .claude.json normally sits *beside* the config dir, but claude moves it
+# *inside* when $CLAUDE_CONFIG_DIR is set. Mirror both so we write the trust
+# setting to the file claude will actually read.
+if [ -n "${CLAUDE_CONFIG_DIR:-}" ]; then
+    claude_config_dir="$CLAUDE_CONFIG_DIR"
+    claude_json="$CLAUDE_CONFIG_DIR/.claude.json"
+else
+    claude_config_dir="$claude_home/.claude"
+    claude_json="$claude_home/.claude.json"
+fi
+
 # Resolve work directory: --dir wins, then $CLAUDE_WORK_DIR, then the default.
-# Canonicalize so the path used as a key in ~/.claude.json matches what
+# Canonicalize so the path used as a key in .claude.json matches what
 # claude itself will use at startup.
-WORK_DIR_RAW="${DIR_OVERRIDE:-${CLAUDE_WORK_DIR:-$HOME/.claude/remote-sessions}}"
+WORK_DIR_RAW="${DIR_OVERRIDE:-${CLAUDE_WORK_DIR:-$claude_config_dir/remote-sessions}}"
 mkdir -p "$WORK_DIR_RAW"
 WORK_DIR="$(cd "$WORK_DIR_RAW" && pwd -P)"
 
-# Ensure ~/.claude.json marks this directory as trusted.
-CLAUDE_JSON="$HOME/.claude.json" WORK_DIR="$WORK_DIR" python3 <<'EOF'
+# Ensure .claude.json marks this directory as trusted.
+CLAUDE_JSON="$claude_json" WORK_DIR="$WORK_DIR" python3 <<'EOF'
 import json, os
 p = os.environ["CLAUDE_JSON"]
 work_dir = os.environ["WORK_DIR"]

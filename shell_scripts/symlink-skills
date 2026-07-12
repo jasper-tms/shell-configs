@@ -1,7 +1,7 @@
 #!/bin/bash
 # Finds directories named `skills` or `agent-skills` in a repo, and offers to
-# symlink any not-yet-linked skill inside them into ~/.claude/skills/, so
-# they become visible to Claude Code everywhere on this machine.
+# symlink any not-yet-linked skill inside them into Claude Code's global skills
+# folder, so they become visible to Claude Code everywhere on this machine.
 #
 # Usage: symlink-skills [repo_root]
 #   repo_root defaults to the current repo's top level.
@@ -13,7 +13,10 @@ set -e
 repo_root="${1:-$(git rev-parse --show-toplevel 2>/dev/null)}"
 [ -n "$repo_root" ] || exit 0
 
-global_skills_dir="$HOME/.claude/skills"
+# Claude's home is not always our $HOME: on machines that launch Claude with an
+# overridden HOME, $CLAUDE_HOME names the real one. That matters here because we
+# run from git hooks, which never see the `claude` alias that does the overriding.
+global_skills_dir="${CLAUDE_CONFIG_DIR:-${CLAUDE_HOME:-$HOME}/.claude}/skills"
 
 candidate_names=()
 candidate_paths=()
