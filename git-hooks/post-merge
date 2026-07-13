@@ -1,21 +1,5 @@
 #!/bin/bash
 # Global git hook dispatcher (see: git config --global core.hooksPath).
-# Runs every executable script in post-merge.d/, in sorted order, then
-# chains to any repo-local post-merge hook a tool like pre-commit/husky may
-# have installed directly into .git/hooks (which core.hooksPath would
-# otherwise shadow). Each real concern (uv-editables refresh, skills
-# symlinking, ...) lives in its own file under post-merge.d/.
-hook_name="$(basename "$0")"
-hook_dir="$(cd "$(dirname "$0")" && pwd)/$hook_name.d"
-
-if [ -d "$hook_dir" ]; then
-    for script in "$hook_dir"/*; do
-        [ -x "$script" ] || continue
-        "$script" "$@" || echo "warning: $script failed (exit $?)" >&2
-    done
-fi
-
-local_hook="$(git rev-parse --git-dir 2>/dev/null)/hooks/$hook_name"
-if [ -x "$local_hook" ]; then
-    exec "$local_hook" "$@"
-fi
+# Every hook here is this same stub. The logic lives in dispatch.sh, which
+# derives the hook name from $0 -- see it for what runs, in what order, and why.
+. "$(cd "$(dirname "$0")" && pwd)/dispatch.sh"

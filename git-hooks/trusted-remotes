@@ -1,0 +1,21 @@
+# GitHub accounts and organizations whose repositories may run their own
+# checked-in hooks (.githooks/<hook-name>) on this machine. One per line;
+# blank lines and #-comments ignored; matched case-insensitively against the
+# repo's `origin` URL, in both github.com/account/ and github.com:account/ form.
+#
+# This is a code-execution boundary, not a convenience list. A repo named here
+# gets to run whatever is in its .githooks/ the next time you commit in it, so
+# an account belongs here only if you would run its scripts without reading
+# them.
+#
+# A repo not listed here is skipped with a note on stderr, never silently. To
+# override this list for one repo, either way:
+#
+#     git config hooks.allowRepoHooks true    # or false
+#
+jasper-tms
+
+# NeLy-EPFL is a shared lab organization: anyone who can push to one of its
+# repos can, via this line, run code on your machine. Uncomment only if that is
+# the trade you want.
+# NeLy-EPFL

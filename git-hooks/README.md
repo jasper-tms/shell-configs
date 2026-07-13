@@ -5,19 +5,60 @@ Git hooks that run in **every** repository on this machine, installed once via
 
 ## How the dispatching works
 
-Git only ever runs one file per hook name, so each hook here
-(`post-checkout`, `post-commit`, `post-merge`) is a small dispatcher that:
+Git only ever runs one file per hook name, so each hook here (`pre-commit`,
+`post-checkout`, `post-commit`, `post-merge`) is an identical one-line stub that
+sources `dispatch.sh`, which derives the hook name from `$0` and then, in order:
 
 1. Runs every executable script in the matching `<hook-name>.d/` directory, in
-   sorted order (hence the `10-`, `20-` numeric prefixes). A script that fails
-   prints a warning but does not stop the others or the git command itself.
-2. Chains to the repository's own `.git/hooks/<hook-name>`, if one exists and is
+   sorted order (hence the `10-`, `20-` numeric prefixes).
+2. Runs the repository's own `.githooks/<hook-name>`, if it has one and its
+   hooks are trusted — see [Repo-local hooks](#repo-local-hooks) below.
+3. Chains to the repository's `.git/hooks/<hook-name>`, if one exists and is
    executable. This matters because setting `core.hooksPath` otherwise
    *shadows* `.git/hooks/`, which would silently disable hooks installed by
    tools like pre-commit or husky.
 
+A failing script aborts the git command for a `pre-*` hook and is only a warning
+for a `post-*` one. That is less a policy than an observation: blocking a commit
+that should not happen is the entire point of a pre-commit hook, while a
+post-commit hook runs after the fact and has nothing left to stop.
+
 So each real concern lives in its own small file under `<hook-name>.d/`, and
 adding a new one is just a matter of dropping in an executable script.
+
+## Repo-local hooks
+
+A repository can ship hooks to everyone who clones it by checking them in at
+`.githooks/<hook-name>` (executable). Nothing is installed per clone: step 2
+above finds them. This is how, for example,
+[exact-video-engine.js](https://github.com/jasper-tms/exact-video-engine.js)
+keeps its release version in sync on commit.
+
+That step runs code that arrived in a clone, which is precisely what git refuses
+to do by default — hooks live in `.git/hooks`, outside the tree and never
+cloned, so that cloning a repo cannot make it execute code on your next commit.
+We reopen that door only for repos whose `origin` belongs to an account listed
+in [`trusted-remotes`](trusted-remotes). Any other repo's checked-in hooks are
+skipped, with a note on stderr saying so — never silently, since a hook that a
+repo went to the trouble of shipping and that then quietly does not run is the
+one outcome nobody would ever think to investigate.
+
+`trusted-remotes` is a code-execution boundary, not a convenience list: an
+account belongs in it only if you would run its repos' scripts without reading
+them.
+
+To decide for a single repo either way, regardless of who owns it:
+
+```bash
+git config hooks.allowRepoHooks true    # or false, which wins even for your own repos
+```
+
+A repo that wants a hook to run for *anyone* who clones it, not just you, should
+say so in its README — the portable, shadow-free install being:
+
+```bash
+ln -s ../../.githooks/pre-commit .git/hooks/pre-commit
+```
 
 ## The hooks we currently have
 
