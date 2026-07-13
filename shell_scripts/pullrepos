@@ -1,5 +1,29 @@
 #!/bin/bash
 
+verbose=false
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -v|--verbose)
+            verbose=true
+            shift
+            ;;
+        -h|--help)
+            echo "Usage: pullrepos [-v|--verbose]"
+            echo
+            echo "Run \`git pull\` on every repo found in ~/repos or /workspace/repos."
+            echo "By default only repos with something new to report are printed."
+            echo "With -v, every repo is printed as it is pulled, even if it was"
+            echo "already up to date."
+            exit 0
+            ;;
+        *)
+            echo "Unrecognized argument: $1" >&2
+            echo "Usage: pullrepos [-v|--verbose]" >&2
+            exit 1
+            ;;
+    esac
+done
+
 if [ -d ~/repos ]; then
     repos_dir=~/repos
 elif [ -d /workspace/repos ]; then
@@ -13,10 +37,18 @@ echo "Running \`git pull\` on all repos within $repos_dir..."
 echo
 for repo in "$repos_dir"/*/.git "$repos_dir"/*/*/.git; do
     if [ ! -d "$repo" ]; then continue; fi
-    cd ${repo%%.git}
+    repo_dir=${repo%%/.git}
+    cd "$repo_dir"
+    if [ "$verbose" = true ]; then echo "$repo_dir"; fi
     output=$(git pull 2>&1)
-    if [ "$output" = "Already up to date." ]; then continue; fi
-    echo $repo
+    if [ "$output" = "Already up to date." ]; then
+        if [ "$verbose" = true ]; then
+            echo "$output"
+            echo
+        fi
+        continue
+    fi
+    if [ "$verbose" = false ]; then echo "$repo_dir"; fi
     echo "$output"
     echo
 done
