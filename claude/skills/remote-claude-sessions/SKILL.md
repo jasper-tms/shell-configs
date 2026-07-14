@@ -49,6 +49,8 @@ Then wait ~3 seconds, recapture the screen, and confirm "Remote Control active" 
 
 Same mechanism — `screen -X stuff` with `\r` for Enter. Embed text the same way: `$'some text\r'`. Slash commands like `/compact` work fine as a single atomic `stuff` call — the split-call workaround below is only needed for `!` shell mode.
 
+`screen -X stuff` expands `$VAR` references (from screen's own environment) before injecting the bytes: `stuff '$HOME'` sends the value of `HOME` (e.g. `/home/user`). Escape any literal `$` you want to send with a backslash: `stuff '\$HOME'` sends the literal characters `$HOME`.
+
 ### Sending a literal `!shell-command` (real shell mode, not a chat message)
 
 Claude Code's input box has a `!`-prefix shell mode: typing a bare `!` when the
@@ -80,6 +82,16 @@ screen -S claude-remote-N -X stuff $'\r'
 Verify by capturing the screen afterward — a genuine shell-mode run shows the
 command echoed as `! your command here` followed by its raw output, directly
 in the transcript.
+
+## Other (non-Claude) screens you may see
+
+A `screen -ls` on this machine will usually also list these long-running service screens. They are **not** Claude sessions — never treat them as part of the Claude fleet, and never send them input:
+
+- `cloudflared-ttmodel` — a cloudflared tunnel.
+- `sportid-parameter-explorer` — a SportID service.
+- `serve-offline-page` — serves an offline fallback page.
+
+Only screens named `claude-boss` or `claude-remote-N` are Claude sessions.
 
 ## Don't re-implement
 
