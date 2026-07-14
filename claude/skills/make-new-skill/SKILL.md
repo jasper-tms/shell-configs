@@ -33,14 +33,17 @@ Before creating a new skill, you must do two things:
 
 ## Test and iterate
 
-Test the new skill with a subagent using the simplest available model (for Claude, that's currently Haiku). A freshly written skill will be visible to subagents as soon as it's symlinked into `~/.claude/skills/`, even when launched by the same agent session that wrote the skill, so you should test and iterate on both **discovery** and **content**:
+Test the new skill with subagents using the simplest available model (for Claude, that's currently Haiku).
 
-1. **Discovery (does the `description` trigger the skill?)** — Give the subagent a natural task or question that *should* trigger the skill, WITHOUT naming the skill or pointing at its file. Verify the subagent chooses to load the skill on its own. If it doesn't, the frontmatter `description` isn't triggering well enough — sharpen it (add the words a user would actually use, the symptoms, the tool names) and retest.
-2. **Content (does the loaded skill actually work?)** — Once loaded, verify the subagent's output is correct, its thinking was clear and without confusion, and the skill gave it everything it needed to reach the answer/solution quickly without having to figure things out itself.
+**First, confirm the skill is actually visible to subagents.** Launch a Haiku subagent, instructing it in the prompt not to use Read/Grep/Glob/Bash or any other file-inspection tool, and ask it to report the new skill's description. (The instruction matters: a subagent that can search the filesystem will find `SKILL.md` on disk and report its contents even when the skill is not actually loaded, which looks like a pass but tests nothing.) Subagents inherit the parent session's skill registry, so if the parent hasn't re-scanned since you created the skill, this fails. If the subagent can't report the skill description, ask the user to run `/reload-skills` (you can't run slash commands yourself), then try asking a new subagent. If the subagent saw the skill on the first try, just proceed without asking the user to reload skills.
 
-Prefer testing both together via the discovery prompt in step 1. Only fall back to pointing the subagent directly at the SKILL.md file if you specifically want to test content in isolation — but know that doing so bypasses (and therefore doesn't test) discovery.
+Once we confirm that a subagent can see the new skill, test and iterate on both the skill's **discovery** and its **content**:
+1. **Discovery (does the `description` trigger the skill?)** — Give the subagent a natural task or question that *should* trigger the skill, WITHOUT naming the skill or pointing at its file. Verify the subagent chooses to load the skill on its own. If it doesn't, the frontmatter `description` isn't triggering well enough — sharpen it (add the words a user would actually use, the symptoms, the tool names) without getting too verbose, then retest.
+2. **Content (does the loaded skill actually work?)** — Once loaded, verify the subagent's output is correct, its thinking was clear and logical, and the skill gave it everything it needed to reach the answer/solution quickly without getting confused or having to figure things out itself.
 
-If there was any suboptimality in the subagent's behavior, refine the skill file(s) to be more helpful and idiot-proof, then launch a new subagent to test the updated skill. Iterate until satisfied.
+Prefer testing both together via a natural-task-or-question prompt (just described in 1. Discovery). Only fall back to prompting the subagent directly to use the skill by name if you specifically want to test content in isolation — but know that doing so bypasses (and therefore doesn't test) discovery.
+
+If there was **any** suboptimality in the subagent's behavior, refine the skill file(s) to be more helpful and idiot-proof, then launch a new subagent to test the updated skill. Iterate until satisfied.
 
 ## Finalize
 
