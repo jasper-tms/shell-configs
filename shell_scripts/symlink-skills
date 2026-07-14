@@ -3,15 +3,17 @@
 # symlink any not-yet-linked skill inside them into Claude Code's global skills
 # folder, so they become visible to Claude Code everywhere on this machine.
 #
-# Usage: symlink-skills [repo_root]
-#   repo_root defaults to the current repo's top level.
+# Usage: symlink-skills [search_path]
+#   search_path defaults to the current repo's top level. It can also be a
+#   subfolder, to only offer the skills below that subfolder (this is how
+#   claude/configure.sh calls this script), or a skills folder itself.
 #
 # Intended to be called both directly and from the post-checkout/post-merge
 # git hooks (see git-hooks/post-checkout.d/ and git-hooks/post-merge.d/).
 set -e
 
-repo_root="${1:-$(git rev-parse --show-toplevel 2>/dev/null)}"
-[ -n "$repo_root" ] || exit 0
+search_path="${1:-$(git rev-parse --show-toplevel 2>/dev/null)}"
+[ -n "$search_path" ] || exit 0
 
 # Claude's home is not always our $HOME: on machines that launch Claude with an
 # overridden HOME, $CLAUDE_HOME names the real one. That matters here because we
@@ -32,18 +34,18 @@ while IFS= read -r -d '' skills_folder; do
         candidate_names+=("$skill_name")
         candidate_paths+=("$skill_path")
     done
-done < <(find "$repo_root" -maxdepth 2 -type d \( -name skills -o -name agent-skills \) \
+done < <(find "$search_path" -maxdepth 2 -type d \( -name skills -o -name agent-skills \) \
              -not -path '*/.git/*' -print0)
 
 [ ${#candidate_names[@]} -gt 0 ] || exit 0
 
 if ! { exec 3<>/dev/tty; } 2>/dev/null; then
-    echo "symlink-skills: found ${#candidate_names[@]} unlinked skill(s) in $repo_root;" \
-         "run 'symlink-skills $repo_root' to link them" >&2
+    echo "symlink-skills: found ${#candidate_names[@]} unlinked skill(s) in $search_path;" \
+         "run 'symlink-skills $search_path' to link them" >&2
     exit 0
 fi
 
-echo "Found skills in $repo_root not yet linked into $global_skills_dir:"
+echo "Found skills in $search_path not yet linked into $global_skills_dir:"
 for i in "${!candidate_names[@]}"; do
     echo "  $((i + 1))) ${candidate_names[$i]}"
 done
@@ -70,10 +72,13 @@ esac
 mkdir -p "$global_skills_dir"
 for idx in "${chosen_indices[@]}"; do
     link_target="$global_skills_dir/${candidate_names[$idx]}"
-    if [ -e "$link_target" ] || [ -L "$link_target" ]; then
-        echo "Skipping ${candidate_names[$idx]}: $link_target already exists" >&2
+    # A symlink here points at some other copy of this skill (e.g. an old
+    # checkout of this repo), so repoint it. A real file or folder is somebody
+    # else's, so leave it alone.
+    if [ -e "$link_target" ] && [ ! -L "$link_target" ]; then
+        echo "Skipping ${candidate_names[$idx]}: $link_target exists and is not a symlink" >&2
         continue
     fi
-    ln -s "${candidate_paths[$idx]}" "$link_target"
+    ln -snf "${candidate_paths[$idx]}" "$link_target"
     echo "Linked ${candidate_names[$idx]} -> ${candidate_paths[$idx]}"
 done

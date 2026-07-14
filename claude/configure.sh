@@ -32,12 +32,12 @@ elif ! grep -Fxq "$REF_LINE" "$GLOBAL_CLAUDE_MD"; then
     echo "prepended reference to $SCRIPT_DIR/CLAUDE.md in $GLOBAL_CLAUDE_MD"
 fi
 
-# Link each skill in this repo into the global claude skills folder
-mkdir -p "$CLAUDE_DIR/skills" > /dev/null
-for skill_dir in "$SCRIPT_DIR/skills"/*/; do
-    [ -d "$skill_dir" ] || continue
-    ln -snvf "${skill_dir%/}" "$CLAUDE_DIR/skills/$(basename "$skill_dir")"
-done
+# Offer to link this repo's skills into the global claude skills folder. Some
+# skills here are only relevant on some machines (work vs personal), so this
+# prompts for which ones to install rather than linking them all. Passing
+# $SCRIPT_DIR keeps the search to this repo's claude/skills folder. (Called by
+# path since shell_scripts/ may not be on PATH yet on a freshly set up machine.)
+"$SCRIPT_DIR/../shell_scripts/symlink-skills" "$SCRIPT_DIR"
 
 # Claude tries to update settings.json too much (e.g. user changes the model or
 # effort within a session -> claude tries to make that the new default for future
