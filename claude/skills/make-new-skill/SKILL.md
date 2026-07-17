@@ -52,4 +52,6 @@ If there was **any** suboptimality in the subagent's behavior, refine the skill 
 
 ## Finalize
 
+Add the new skill to the machine's skill lookup table `~/.claude/skills/_SKILL_LISTING.md` (under the heading for the folder where its files really live), if that file exists.
+
 Write a git commit script that adds and commits the new skill file(s). (Note that `.claude` is typically globally gitignored, so the symlinks that help `claude` auto-detect the skill do not need to be addressed in git operations.)
