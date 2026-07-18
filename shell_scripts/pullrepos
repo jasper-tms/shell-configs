@@ -1,6 +1,7 @@
 #!/bin/bash
 
 verbose=false
+repos_dir=
 while [ $# -gt 0 ]; do
     case "$1" in
         -v|--verbose)
@@ -8,23 +9,42 @@ while [ $# -gt 0 ]; do
             shift
             ;;
         -h|--help)
-            echo "Usage: pullrepos [-v|--verbose]"
+            echo "Usage: pullrepos [-v|--verbose] [folder]"
             echo
             echo "Run \`git pull\` on every repo found in ~/repos or /workspace/repos."
+            echo "Give an optional folder argument (e.g. \`pullrepos .\`) to use that"
+            echo "folder as the repo root instead of the default locations."
             echo "By default only repos with something new to report are printed."
             echo "With -v, every repo is printed as it is pulled, even if it was"
             echo "already up to date."
             exit 0
             ;;
-        *)
+        -*)
             echo "Unrecognized argument: $1" >&2
-            echo "Usage: pullrepos [-v|--verbose]" >&2
+            echo "Usage: pullrepos [-v|--verbose] [folder]" >&2
             exit 1
+            ;;
+        *)
+            if [ -n "$repos_dir" ]; then
+                echo "Too many arguments: $1" >&2
+                echo "Usage: pullrepos [-v|--verbose] [folder]" >&2
+                exit 1
+            fi
+            repos_dir=$1
+            shift
             ;;
     esac
 done
 
-if [ -d ~/repos ]; then
+if [ -n "$repos_dir" ]; then
+    if [ ! -d "$repos_dir" ]; then
+        echo "Not a directory: $repos_dir" >&2
+        exit 1
+    fi
+    # Resolve to an absolute path so the per-repo `cd` below doesn't break
+    # subsequent relative paths (e.g. when the folder given is `.`).
+    repos_dir=$(cd "$repos_dir" && pwd)
+elif [ -d ~/repos ]; then
     repos_dir=~/repos
 elif [ -d /workspace/repos ]; then
     repos_dir=/workspace/repos
@@ -32,6 +52,7 @@ else
     echo "No repos directory found at ~/repos or /workspace/repos" >&2
     exit 1
 fi
+repos_dir=${repos_dir%/}
 
 echo "Running \`git pull\` on all repos within $repos_dir..."
 echo
