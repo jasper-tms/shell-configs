@@ -1,5 +1,6 @@
 
 alias cdconfigs="cd $SHELL_CONFIGS_DIR"
+alias cdskills="cd $SHELL_CONFIGS_DIR/claude/skills"
 alias cdaliases="cd $SHELL_CONFIGS_DIR/aliases"
 alias vialiases="vi $SHELL_CONFIGS_DIR/aliases/general.sh"
 
