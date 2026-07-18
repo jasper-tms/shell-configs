@@ -39,10 +39,31 @@ done < <(find "$search_path" -maxdepth 2 -type d \( -name skills -o -name agent-
 
 [ ${#candidate_names[@]} -gt 0 ] || exit 0
 
-if ! { exec 3<>/dev/tty; } 2>/dev/null; then
+# Print the "here is how to link these later" notice and exit without prompting.
+# Used whenever we cannot or should not ask a human interactively.
+notify_and_exit() {
     echo "symlink-skills: found ${#candidate_names[@]} unlinked skill(s) in $search_path;" \
          "run 'symlink-skills $search_path' to link them" >&2
     exit 0
+}
+
+# Do not prompt when something other than a human is driving this. We run from
+# git hooks (post-checkout/post-merge), which fire in plenty of non-interactive
+# contexts -- an agent creating a worktree, CI, a scripted checkout -- where a
+# `read` would hang the git command forever waiting for input nobody will type.
+#
+# We cannot rely on /dev/tty being unopenable to detect that: Claude Code runs
+# commands under a pseudo-terminal, so /dev/tty opens fine even though no human
+# is watching. So check for the telltale environment variables of the automation
+# we know about first. SYMLINK_SKILLS_NONINTERACTIVE is an explicit opt-out for
+# anything we do not detect automatically.
+if [ -n "$CLAUDECODE" ] || [ -n "$CI" ] || [ -n "$SYMLINK_SKILLS_NONINTERACTIVE" ]; then
+    notify_and_exit
+fi
+
+# Even for an apparent human, only prompt if we can reach the terminal.
+if ! { exec 3<>/dev/tty; } 2>/dev/null; then
+    notify_and_exit
 fi
 
 echo "Found skills in $search_path not yet linked into $global_skills_dir:"
@@ -50,7 +71,16 @@ for i in "${!candidate_names[@]}"; do
     echo "  $((i + 1))) ${candidate_names[$i]}"
 done
 
-read -r -p "Symlink which ones? [a=all, n=none, or space-separated numbers]: " selection <&3
+# A timeout is the last-resort backstop for any non-interactive caller the
+# checks above did not catch: rather than hang the git command forever, give up
+# after a while and link nothing. A human answers in far less than this.
+if ! read -r -t 30 -p "Symlink which ones? [a=all, n=none, or space-separated numbers]: " selection <&3; then
+    echo >&2  # terminate the dangling prompt line that read left behind
+    echo "symlink-skills: no response; linking none." \
+         "Run 'symlink-skills $search_path' to link them later." >&2
+    exec 3>&-
+    exit 0
+fi
 exec 3>&-
 
 chosen_indices=()
