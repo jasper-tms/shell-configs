@@ -28,8 +28,16 @@ while IFS= read -r -d '' skills_folder; do
         skill_name="$(basename "$skill_dir")"
         skill_path="$(cd "$skill_dir" && pwd)"
         link_target="$global_skills_dir/$skill_name"
-        if [ -L "$link_target" ] && [ "$(readlink "$link_target")" = "$skill_path" ]; then
-            continue  # already linked
+        # Already linked? Compare where the symlink actually resolves to, not the
+        # raw `readlink` text: an existing link may be relative (../../repos/...)
+        # while $skill_path is absolute, and those never string-match even when
+        # they point at the same directory. `cd -P` into both and compare the
+        # canonical paths so relative and absolute links are judged the same.
+        if [ -L "$link_target" ]; then
+            resolved_link="$(cd -P "$link_target" 2>/dev/null && pwd)"
+            if [ "$resolved_link" = "$(cd -P "$skill_dir" && pwd)" ]; then
+                continue  # already linked
+            fi
         fi
         candidate_names+=("$skill_name")
         candidate_paths+=("$skill_path")
