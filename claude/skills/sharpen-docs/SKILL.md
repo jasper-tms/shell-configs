@@ -42,3 +42,10 @@ Cut the reassurance down to whatever is genuinely actionable (here, that re-runn
 > Run `refresh-registry` to rebuild the index. Re-running is a no-op on files that haven't changed, so it's safe to run repeatedly.
 
 The exception: keep the reassurance when the reader has a *real, specific* reason to hesitate that the instruction alone doesn't resolve - e.g. a scary-looking warning the tool prints, or a step that looks destructive but isn't.
+
+## Sharpening skill descriptions
+The `description:` line of a skill is by far the most important part of a skill file to spend time optimizing. Because descrptions are loaded into context by _every_ agent and are the sole gate to whether the agent loads the skill content:
+1. If a description is longer than necessary, tokens are wasted _every_ conversation as agents keep that unnecessary description text in mind – a small cost multiplied by a huge number of occurances.
+2. If a description does not adequately describe the situations where an agent should load the skill, agents will either not load the skill when it would be useful (wasting huge amounts of effort trying to re-discover things itself, or worse, doing the task wrong) or load it when it would not be useful (wasting tokens on now keeping the whole skill contents in mind) – rarer occurances, but huge costs.
+
+Your goal is therefore extremely clear: Make skill descriptions as short as possible while making them 1. trigger reliably in the situations where the skill's contents is actually useful, and 2. not trigger when the skill's contents aren't relevant. Critically, a skill's description absolutely does not need to summarize or list the main sections or conclusions of the skill – this is a common mistake, and when you see a description of this sort, it's a clear win to rewrite the description from the mindset of "how do I keep this description extremely short while still having it trigger reliably".
