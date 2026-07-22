@@ -5,17 +5,32 @@ of truth; mapping comes from a real per-frame PTS table; **index or refuse**,
 never guess an fps). This file is the concrete how-to for the browser.
 
 Keep `<video>` for display, but get the timing table by **demuxing the
-container** (read PTS from the boxes; no decode needed). The only containers you
-need to index are the ones a browser plays natively — a format `<video>` can't
-decode has nothing to attach a table to — and that set is small: ISOBMFF
-(mp4/m4v/mov), WebM/Matroska, and Ogg. **Only ISOBMFF has a central index** (the
-`moov`), which mp4box reads from a few range requests; WebM and Ogg store
-timestamps beside the frames with no central table, so building theirs needs a
-full sequential no-decode pass over the whole file (Matroska cluster-block
-timestamps; Ogg page granule positions). Segmented or live delivery
+container** (read PTS from the boxes; no decode needed). For the `<video>` path,
+the only containers worth indexing are the ones a browser plays natively — a
+format `<video>` can't decode has nothing to attach a table to — and that set is
+small: ISOBMFF (mp4/m4v/mov), WebM/Matroska, and Ogg. **Only ISOBMFF has a
+central index** (the `moov`), which mp4box reads from a few range requests; WebM
+and Ogg store timestamps beside the frames with no central table, so building
+theirs needs a full sequential no-decode pass over the whole file (Matroska
+cluster-block timestamps; Ogg page granule positions). Segmented or live delivery
 (HLS/MPEG-TS, DASH, MSE) is not a single range-readable file and does not fit
-this model — refuse it. For ISOBMFF use **mp4box.js** (bundle it offline). Rules,
-all required:
+this model — refuse it. For ISOBMFF use **mp4box.js** (bundle it offline).
+
+**Exception — a container you decode yourself with WebCodecs.** If you run a
+`VideoDecoder` rather than a `<video>` element, you are not limited to
+browser-native containers: you can index and play one the browser won't touch,
+**AVI** being the case in point (Chromium and Firefox refuse AVI in `<video>`).
+But this needs more than a timestamp table — WebCodecs decodes from a full
+decode-order **sample table** (byte offset, size, keyframe flag per frame) plus a
+**`decoderConfig`**, which you build from the container's own index (AVI's `idx1`
+or OpenDML `indx`/`ix##`). Two gotchas learned the hard way on AVI's H.264: it is
+stored **Annex B**, but WebKit's WebCodecs answers `isConfigSupported()` = true
+for an Annex-B (no-`description`) config and then *fails the decode* — a dishonest
+yes — so configure in **AVCC** mode (build an `avcC` description from the first
+keyframe's SPS/PPS and convert each frame's start codes to length prefixes);
+AVCC is the one form every engine decodes. And because such a container has **no
+native fallback**, a codec WebCodecs can't decode must be refused, not handed to
+`<video>`. Rules for the `<video>` path, all required:
 
 1. **Build a per-frame PTS table from the container, then SORT by composition
    time.** mp4box yields samples in *decode* order; with B-frames the
