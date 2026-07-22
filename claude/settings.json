@@ -1,4 +1,8 @@
 {
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
   "permissions": {
     "allow": [
       "Read(//tmp/**)",
@@ -238,27 +242,24 @@
       "Bash(chgrp *-R*)",
       "Bash(chgrp *--recursive*)"
     ],
+    "defaultMode": "auto",
     "additionalDirectories": [
       "/tmp"
-    ],
-    "defaultMode": "auto"
+    ]
   },
+  "model": "opus[1m]",
   "statusLine": {
     "type": "command",
     "command": "$HOME/.claude/statusline-command.sh"
   },
+  "effortLevel": "high",
+  "skipDangerousModePermissionPrompt": true,
+  "agentPushNotifEnabled": true,
+  "skipAutoPermissionPrompt": true,
   "autoMode": {
     "soft_deny": [
       "$defaults",
       "git push is allowed when user has said they want the agent to do it, even pushing to main or master branches"
     ]
-  },
-  "attribution": {
-    "commit": "",
-    "pr": ""
-  },
-  "effortLevel": "high",
-  "skipDangerousModePermissionPrompt": true,
-  "agentPushNotifEnabled": true,
-  "skipAutoPermissionPrompt": true
+  }
 }
