@@ -28,6 +28,10 @@ augroup init_ftypes
   autocmd BufNewFile *.py call append(0, ['#!/usr/bin/env python3', ''])
   " Hard wrap lines after 79 characters in python files
   autocmd FileType python setlocal textwidth=79
+  " Hard wrap markdown files by default (run :HardWrap to toggle off).
+  " Remove the 'l' flag markdown's ftplugin adds, so lines already longer
+  " than textwidth get wrapped as you keep typing on them.
+  autocmd FileType markdown setlocal textwidth=79 formatoptions-=l
   " Write actual tab characters, not 4 spaces, in .tsv files
   autocmd BufRead,BufNewFile *.tsv setlocal noexpandtab
 augroup END
@@ -35,8 +39,9 @@ augroup END
 
 " --- Hard wrap toggle --------------------------------------------------------
 " Hard wrapping (auto-inserting line breaks at a column width as you type)
-" is off by default, including for markdown. Run :HardWrap in a buffer to
-" turn it on at 79 columns; run it again to turn it back off.
+" is off by default for most filetypes, but on by default for markdown (see
+" the filetype-specific settings above). Run :HardWrap in a buffer to toggle
+" it: on at 79 columns, or off again.
 function! s:ToggleHardWrap() abort
   if &l:textwidth == 0
     setlocal textwidth=79
