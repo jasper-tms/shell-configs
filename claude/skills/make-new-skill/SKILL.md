@@ -25,7 +25,7 @@ Before creating a new skill, you must do two things:
 ## Execute
 
 1. By default, just write a SKILL.md file. However, if the skill would benefit from example scripts, reference docs, or other supporting assets that should NOT be added into context by default every time the skill is used but instead would only be useful in some cases, add those as separate files in the skill's own directory or a subdirectory, and describe in the new SKILL.md file when the agent should choose to load or use each supporting file. Information (scripts, docs, other text assets) that SHOULD be added into context by default every time the skill is used should go directly into SKILL.md.
-2. Keep the frontmatter (skill description) short and to the point - all skill descriptions always get loaded into context, so token bloat is real as number of skills grows.
+2. Keep the description short and to the point, on one line (not hard-wrapped) - all skill descriptions always get loaded into context, so token bloat is real as number of skills grows. Hard-wrap the SKILL.md body at 79 characters.
 3. Symlink to a Claude-auto-loading folder:
    - After you make a skill in `jasper-tms/shell-configs`, symlink it into `~/.claude/skills/` so it becomes visible to _all_ future agents.
    - After you make an org or repo skill, make sure that `~/repos/<org>{/<repo>}/.claude/skills -> ../agent-skills` already exists and create it if it doesn't, so that the new skill becomes visible to all future agents _working in that org or repo_ (which will auto-discover that folder).
