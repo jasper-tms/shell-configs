@@ -50,8 +50,18 @@ Prefer testing both together via a natural-task-or-question prompt (just describ
 
 If there was **any** suboptimality in the subagent's behavior, refine the skill file(s) to be more helpful and idiot-proof, then launch a new subagent to test the updated skill. Iterate until satisfied.
 
+### Record the discovery tests in `prompts-to-test-description.md`
+
+Once the description is triggering correctly, write the prompts you tested with into a `prompts-to-test-description.md` file next to `SKILL.md`. This is ground truth that lets a future agent rewrite the `description` (see the sharpen-docs skill) and check whether the rewrite still triggers in the right situations and stays quiet in the wrong ones.
+
+The procedure for the fixture's format, the rules for choosing good prompts, and how to run and score them from subagent transcripts lives in a companion skill, **test-skill-descriptions**. It is deliberately NOT globally registered - keeping its description out of every agent's context - so you cannot load it with the Skill tool; read its `SKILL.md` directly. It sits next to this skill in the same real directory, so resolve this skill's own base directory to its real path (following the symlink) and read the sibling file:
+
+```bash
+cat "$(dirname "$(readlink -f ~/.claude/skills/make-new-skill)")/test-skill-descriptions/SKILL.md"
+```
+
 ## Finalize
 
 Add the new skill to the machine's skill lookup table `~/.claude/skills/_SKILL_LISTING.md` (under the heading for the folder where its files really live), if that file exists.
 
-Write a git commit script that adds and commits the new skill file(s). (Note that `.claude` is typically globally gitignored, so the symlinks that help `claude` auto-detect the skill do not need to be addressed in git operations.)
+Write a git commit script that adds and commits the new skill file(s), including `prompts-to-test-description.md`. (Note that `.claude` is typically globally gitignored, so the symlinks that help `claude` auto-detect the skill do not need to be addressed in git operations.)
