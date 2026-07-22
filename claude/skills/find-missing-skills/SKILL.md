@@ -1,6 +1,6 @@
 ---
 name: find-missing-skills
-description: Immediately load this skill when asked to load or edit a skill whose name or description is not in your available-skills list – it most likely exists and this document can tell you where it is. Also load when asked questions like "Do we have a skill that covers X?"
+description: Immediately load this skill when asked to load or edit a skill whose name or description is not in your available-skills list – it most likely exists and _SKILL_LISTING.md can tell you where it is. Also load when asked questions like "Do we have a skill that covers X?"
 ---
 
 There is a listing of all skills on this machine (that the user knows about) in
