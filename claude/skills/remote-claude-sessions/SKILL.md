@@ -47,7 +47,17 @@ Then wait ~3 seconds, recapture the screen, and confirm "Remote Control active" 
 
 ## Sending other input to a session
 
-Same mechanism — `screen -X stuff` with `\r` for Enter. Embed text the same way: `$'some text\r'`. Slash commands like `/compact` work fine as a single atomic `stuff` call — the split-call workaround below is only needed for `!` shell mode.
+Same mechanism — `screen -X stuff` with `\r` for Enter. Embed text the same way: `$'some text\r'`. Short input — a slash command like `/compact`, or a one-line chat message — submits fine as a single atomic `stuff` call with a trailing `\r`.
+
+**A long chat message does NOT submit as one atomic call.** The burst of characters trips Claude Code's paste detection, and a `\r` glued onto the end of that same write is absorbed as a literal newline — the text lands in the input box but never submits. For any long/multi-line message, send the text and the Enter as **two separate `stuff` calls** with a short pause between, so the Enter arrives as a distinct keypress:
+
+```
+screen -S claude-remote-N -X stuff 'your long message here'
+sleep 1
+screen -S claude-remote-N -X stuff $'\r'
+```
+
+This is the same split-call shape the `!` shell-mode workaround below uses (which additionally needs the leading `!` sent separately).
 
 `screen -X stuff` expands `$VAR` references (from screen's own environment) before injecting the bytes: `stuff '$HOME'` sends the value of `HOME` (e.g. `/home/user`). Escape any literal `$` you want to send with a backslash: `stuff '\$HOME'` sends the literal characters `$HOME`.
 
@@ -83,16 +93,14 @@ Verify by capturing the screen afterward — a genuine shell-mode run shows the
 command echoed as `! your command here` followed by its raw output, directly
 in the transcript.
 
-## Other (non-Claude) screens you may see
+## Listing the fleet
 
-A `screen -ls` on this machine will usually also list these long-running service screens. They are **not** Claude sessions — never treat them as part of the Claude fleet, and never send them input:
+Run this to list the fleet (namely, screens whose names match `claude-remote-*`):
 
-- `cloudflared-ttmodel` — a cloudflared tunnel.
-- `sportid-parameter-explorer` — a SportID service.
-- `serve-offline-page` — serves an offline fallback page.
+    screen -ls claude-remote-
 
-Only screens named `claude-boss` or `claude-remote-N` are Claude sessions.
+This command exits 1 when no screens match that prefix. There might be other screens on the machine which _would_ be shown by a plain `screen -ls` command, but you may _only_ interact with screens named `claude-remote-*` (or `claude-boss`, which drives the fleet rather than belonging to it).
 
-## Don't re-implement
+## Custom requests
 
-Always invoke the script — never reimplement the launch logic inline.
+If the user asks you to launch a new remote claude with some settings that the launch script doesn't easily let you control, you may run your own hand-written launch command, but be sure to copy the logic (e.g. which variables get set) in the launch script in every way, except for the ways that the user has requested.
