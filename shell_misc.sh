@@ -74,10 +74,3 @@ elif ${IS_BASH:=false}; then
         *) export PS1='[\t]\u@'$computername':\w$ ';;
     esac
 fi
-
-
-MOREPYTHONPATHS=\
-$HOME/repos/jasper-tms/misc/miscpy
-
-add_to_path PYTHONPATH "$MOREPYTHONPATHS"
-add_to_path --append "$MOREPYTHONPATHS"
