@@ -236,7 +236,12 @@ if [ -n "$MODEL_ID" ]; then
 fi
 CLAUDE_ARGS+=( "$PROMPT" )
 
-screen -dmS "$SCREEN_NAME" claude "${CLAUDE_ARGS[@]}"
+# This script is often run by another Claude session (e.g. claude-boss),
+# which automatically sets CLAUDE_CODE_CHILD_SESSION=1 in the new Claude, which
+# stops the new Claude from saving its transcript to ~/.claude/projects. Setting
+# CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1 overrides that behavior, making the
+# transcript save to the projects folder like a typical (non-child) session.
+screen -dmS "$SCREEN_NAME" env CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1 claude "${CLAUDE_ARGS[@]}"
 
 echo "Launched detached screen: $SCREEN_NAME"
 echo "  Working directory:   $WORK_DIR"
