@@ -80,7 +80,10 @@ ln -s ../../.githooks/pre-commit .git/hooks/pre-commit
   Same `[tool.uv.sources]` refresh, after a `git pull`/`git merge`.
 
 - `post-merge.d/20-symlink-skills.sh`
-  Same skill-symlinking offer, after a `git pull`/`git merge`.
+  The same offer after a `git pull`/`git merge`, but only for the skills that
+  merge actually added (an added `SKILL.md` between `ORIG_HEAD` and `HEAD`). A
+  skill you have deliberately chosen never to link would otherwise be offered
+  again on every pull, including pulls that do not touch it.
 
 Both underlying commands are resolved from `PATH`, which
 `configure.sh` populates with this repo's `shell_scripts/` directory:
@@ -92,7 +95,10 @@ Both underlying commands are resolved from `PATH`, which
   Full explanation in `claude/skills/using-uv/SKILL.md`.
 - **`symlink-skills`** — makes a repo's skills visible to Claude Code
   everywhere on the machine. It prompts on the terminal, and quietly skips
-  prompting when there isn't one (e.g. in a script or a GUI git client).
+  prompting when there isn't one (e.g. in a script or a GUI git client). Called
+  as `symlink-skills <path>` it offers every unlinked skill under that path;
+  naming skills after the path (`symlink-skills <path> some-skill ...`) narrows
+  the offer to those.
 
 ## Setup
 

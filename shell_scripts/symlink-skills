@@ -3,10 +3,15 @@
 # symlink any not-yet-linked skill inside them into Claude Code's global skills
 # folder, so they become visible to Claude Code everywhere on this machine.
 #
-# Usage: symlink-skills [search_path]
+# Usage: symlink-skills [search_path] [skill_name ...]
 #   search_path defaults to the current repo's top level. It can also be a
 #   subfolder, to only offer the skills below that subfolder (this is how
 #   claude/configure.sh calls this script), or a skills folder itself.
+#   skill_name arguments, if any, narrow the offer to just those skills. Without
+#   them every not-yet-linked skill under search_path is offered, which means a
+#   skill you deliberately never link keeps coming back every time; a caller that
+#   knows which skills just appeared (post-merge.d/20-symlink-skills.sh does)
+#   should name them so the rest stay quiet.
 #
 # Intended to be called both directly and from the post-checkout/post-merge
 # git hooks (see git-hooks/post-checkout.d/ and git-hooks/post-merge.d/).
@@ -14,6 +19,20 @@ set -e
 
 search_path="${1:-$(git rev-parse --show-toplevel 2>/dev/null)}"
 [ -n "$search_path" ] || exit 0
+if [ $# -gt 0 ]; then
+    shift  # drop search_path, leaving only the skill names
+fi
+requested_skill_names=("$@")
+
+# Was this skill named on the command line? Vacuously true when none were, which
+# is what makes the no-arguments case mean "offer everything".
+skill_was_requested() {
+    [ ${#requested_skill_names[@]} -gt 0 ] || return 0
+    for requested_name in "${requested_skill_names[@]}"; do
+        [ "$requested_name" = "$1" ] && return 0
+    done
+    return 1
+}
 
 # Claude's home is not always our $HOME: on machines that launch Claude with an
 # overridden HOME, $CLAUDE_HOME names the real one. That matters here because we
@@ -26,6 +45,7 @@ while IFS= read -r -d '' skills_folder; do
     for skill_dir in "$skills_folder"/*/; do
         [ -f "${skill_dir}SKILL.md" ] || continue
         skill_name="$(basename "$skill_dir")"
+        skill_was_requested "$skill_name" || continue
         skill_path="$(cd "$skill_dir" && pwd)"
         link_target="$global_skills_dir/$skill_name"
         # Already linked? Compare where the symlink actually resolves to, not the
@@ -47,11 +67,16 @@ done < <(find "$search_path" -maxdepth 2 -type d \( -name skills -o -name agent-
 
 [ ${#candidate_names[@]} -gt 0 ] || exit 0
 
+# The command that reproduces this exact offer later. It names the skills we
+# found, so that running it brings back the list just shown rather than every
+# unlinked skill under $search_path.
+rerun_command="symlink-skills $search_path ${candidate_names[*]}"
+
 # Print the "here is how to link these later" notice and exit without prompting.
 # Used whenever we cannot or should not ask a human interactively.
 notify_and_exit() {
     echo "symlink-skills: found ${#candidate_names[@]} unlinked skill(s) in $search_path;" \
-         "run 'symlink-skills $search_path' to link them" >&2
+         "run '$rerun_command' to link them" >&2
     exit 0
 }
 
@@ -85,7 +110,7 @@ done
 if ! read -r -t 30 -p "Symlink which ones? [a=all, n=none, or space-separated numbers]: " selection <&3; then
     echo >&2  # terminate the dangling prompt line that read left behind
     echo "symlink-skills: no response; linking none." \
-         "Run 'symlink-skills $search_path' to link them later." >&2
+         "Run '$rerun_command' to link them later." >&2
     exec 3>&-
     exit 0
 fi
