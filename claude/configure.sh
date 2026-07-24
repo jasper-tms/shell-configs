@@ -39,8 +39,7 @@ fi
 # path since shell_scripts/ may not be on PATH yet on a freshly set up machine.)
 "$SCRIPT_DIR/../shell_scripts/symlink-skills" "$SCRIPT_DIR"
 
-# Claude tries to update settings.json too much (e.g. user changes the model or
-# effort within a session -> claude tries to make that the new default for future
-# sessions by changing settings.json), so make it read-only to prevent that.
-# Actually I've decided to allow it for now so the next line is commented out.
+# Claude rewrites settings.json when a session changes the model or effort.
+# Making it read-only stops that but also breaks the slash commands that save a
+# setting -- /tui then fails instead of switching -- so reset it by hand.
 #chmod -w "$SCRIPT_DIR" "$SCRIPT_DIR/settings.json"

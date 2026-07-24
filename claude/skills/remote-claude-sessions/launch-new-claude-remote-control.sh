@@ -41,6 +41,11 @@
 #                          positional argument. Defaults to
 #                          "Wait for further instructions" so the new
 #                          session takes a first turn for initialization.
+#   -t, --tui    <mode>    Terminal renderer: fullscreen (default) or
+#                          default. "fullscreen" gives scrollback that the
+#                          mouse wheel drives directly, instead of screen's
+#                          copy mode. Set it here, not with /tui, which
+#                          restarts claude and drops the pin set below.
 #   -h, --help             Show this help and exit.
 #
 # Examples:
@@ -48,12 +53,13 @@
 #   ./launch-new-claude-remote-control.sh "Wait for further instructions"
 #   ./launch-new-claude-remote-control.sh --model fable "/developer Run a loop"
 #   ./launch-new-claude-remote-control.sh -m fable -d ~/repos/jasper-tms/swiss-table-tennis-chat
+#   ./launch-new-claude-remote-control.sh --tui default
 #   CLAUDE_WORK_DIR=/some/path ./launch-new-claude-remote-control.sh
 
 set -euo pipefail
 
 usage() {
-    sed -n '2,50p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,57p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 # --- Defaults ---
@@ -64,6 +70,7 @@ EFFORT="high"
 PROMPT=""
 PROMPT_SET=0
 DIR_OVERRIDE=""
+TUI_MODE="fullscreen"
 
 # --- Parse options (order-independent flags plus one positional prompt) ---
 while [ $# -gt 0 ]; do
@@ -72,6 +79,7 @@ while [ $# -gt 0 ]; do
         -s|--suffix) NAME_SUFFIX="${2:-}"; SUFFIX_EXPLICIT=1; shift 2 ;;
         -d|--dir)    DIR_OVERRIDE="${2:-}"; shift 2 ;;
         -e|--effort) EFFORT="${2:-}"; shift 2 ;;
+        -t|--tui)    TUI_MODE="${2:-}"; shift 2 ;;
         -p|--prompt) PROMPT="${2:-}"; PROMPT_SET=1; shift 2 ;;
         -h|--help)   usage; exit 0 ;;
         --)          shift
@@ -84,6 +92,12 @@ done
 if [ "$PROMPT_SET" -eq 0 ]; then
     PROMPT="Wait for further instructions"
 fi
+
+case "$TUI_MODE" in
+    fullscreen|default) : ;;
+    *) echo "Invalid --tui mode: $TUI_MODE (expected fullscreen or default)" >&2
+       exit 2 ;;
+esac
 
 # --- Resolve model shorthand to (full id, short label) ---
 # An empty MODEL_INPUT leaves MODEL_ID empty: no --model flag is passed and
@@ -241,13 +255,24 @@ CLAUDE_ARGS+=( "$PROMPT" )
 # stops the new Claude from saving its transcript to ~/.claude/projects. Setting
 # CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1 overrides that behavior, making the
 # transcript save to the projects folder like a typical (non-child) session.
-screen -dmS "$SCREEN_NAME" env CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1 claude "${CLAUDE_ARGS[@]}"
+#
+# CLAUDE_CODE_NO_FLICKER picks the renderer: 1 fullscreen, 0 classic. Set here
+# rather than with /tui, which relaunches claude and drops this variable. Passed
+# in both directions so the renderer never falls back to claude's own default.
+#
+# Fullscreen is the default because it keeps its scrollback inside the claude
+# process: the mouse wheel scrolls the conversation without screen's copy mode
+# (ctrl+A esc), and that history survives reattaching from another terminal.
+if [ "$TUI_MODE" = "fullscreen" ]; then NO_FLICKER=1; else NO_FLICKER=0; fi
+screen -dmS "$SCREEN_NAME" env CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1 \
+    "CLAUDE_CODE_NO_FLICKER=$NO_FLICKER" claude "${CLAUDE_ARGS[@]}"
 
 echo "Launched detached screen: $SCREEN_NAME"
 echo "  Working directory:   $WORK_DIR"
 echo "  Remote Control name: $RC_DISPLAY_NAME"
 echo "  Model:               ${MODEL_ID:-<account default>}"
 echo "  Effort level:        $EFFORT"
+echo "  Renderer:            $TUI_MODE"
 echo "  Initial prompt:      $PROMPT"
 echo "  Attach with:         screen -r $SCREEN_NAME"
 echo "  List screens:        screen -ls"
