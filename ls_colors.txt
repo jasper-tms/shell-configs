@@ -27,6 +27,7 @@ TERM linux-c
 TERM mach-color
 TERM mach-gnu-color
 TERM mlterm
+TERM nsterm*
 TERM putty
 TERM putty-256color
 TERM rxvt*

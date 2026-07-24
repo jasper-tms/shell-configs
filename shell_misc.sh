@@ -37,6 +37,15 @@ if [ -n "$STY" ] && command -v screen > /dev/null 2>&1; then
     unset screen_major_version
 fi
 
+# Terminal.app doesn't implement XTGETTCAP, so neovim 0.10+ capability probes
+# get drawn as literal text on screen. Skipping neovim's startup terminal
+# queries avoids that, and costs only 'termguicolors' autodetection.
+export NVIM_NOTTYFAST=1
+
+# Node tools (e.g. Claude Code) read TERM_PROGRAM for color support, and ssh
+# doesn't forward it. Only Terminal.app declares nsterm, so this is accurate.
+case "$TERM" in nsterm*) export TERM_PROGRAM=Apple_Terminal;; esac
+
 # Before setting LC_COLLATE=C, the default collation is UTF-8 which does this:
 # $ ls -1
 # apple
@@ -64,13 +73,13 @@ fi
 if ${IS_ZSH:=false}; then
     case "$TERM" in
         # See https://zsh.sourceforge.io/Doc/Release/Prompt-Expansion.html
-        xterm-color|*xterm-256color|screen) export PS1='[%*]%B%F{green}'$computername'%f:%F{blue}%~/%f%b'$'\n''$ ';;
+        xterm-color|*xterm-256color|nsterm*|screen) export PS1='[%*]%B%F{green}'$computername'%f:%F{blue}%~/%f%b'$'\n''$ ';;
         *) export PS1='[%*]'$computername':%/$ ';;
     esac
 elif ${IS_BASH:=false}; then
     case "$TERM" in
         # See https://misc.flogisoft.com/bash/tip_colors_and_formatting
-        xterm-color|*xterm-256color|screen) export PS1='[\t]\[\033[01;32m\]\u@'$computername'\[\033[00m\]:\[\033[01;34m\]\w\[\033[0m\]\n$ ';;
+        xterm-color|*xterm-256color|nsterm*|screen) export PS1='[\t]\[\033[01;32m\]\u@'$computername'\[\033[00m\]:\[\033[01;34m\]\w\[\033[0m\]\n$ ';;
         *) export PS1='[\t]\u@'$computername':\w$ ';;
     esac
 fi

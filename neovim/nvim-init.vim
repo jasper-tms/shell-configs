@@ -58,6 +58,11 @@ command! HardWrap call s:ToggleHardWrap()
 
 
 " --- Clipboard --------------------------------------------------------------
+" Terminal.app doesn't implement XTGETTCAP, so neovim's OSC 52 capability
+" probe gets drawn as literal text (`+q4D73`) over the first line. Must be set
+" before the clipboard provider initializes.
+let g:termfeatures = extend(get(g:, 'termfeatures', {}), {'osc52': v:false})
+
 if !empty($SSH_CLIENT) || !empty($SSH_TTY)
   " Over ssh, the system clipboard isn't reachable — leave it unset so yanks
   " stay in vim registers instead of hanging waiting for a clipboard provider.
