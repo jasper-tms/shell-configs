@@ -34,8 +34,8 @@ function doGet(e) {
 }
 ```
 
-`doGet` is not required, but it makes the endpoint answer a browser visit, which
-is the quickest way to confirm the deployment is live.
+`doGet` is not required, but it makes the endpoint answer a browser visit,
+which is the quickest way to confirm the deployment is live.
 
 ## 2. Deploy it
 
@@ -95,13 +95,14 @@ document.getElementById('signupForm').addEventListener('submit', function (event
 
 Apps Script does not send CORS headers a browser will accept for a cross-origin
 JSON POST, so the request goes out with `mode: 'no-cors'`. That makes the
-response **opaque**: `.then()` fires as long as the request left the machine, and
-the `{result: 'success'}` the script so carefully returns is unreadable.
+response **opaque**: `.then()` fires as long as the request left the machine,
+and the `{result: 'success'}` the script so carefully returns is unreadable.
 
-So the success message is **optimistic**. `.catch()` sees network-level failures
-only — it will not fire on a 500 in the script, a bad deployment, or a sheet you
-lost write access to. Treat the sheet itself as the only proof of delivery, and
-after any change to the script, submit once and **go look at the sheet**.
+So the success message is **optimistic**. `.catch()` sees network-level
+failures only — it will not fire on a 500 in the script, a bad deployment, or a
+sheet you lost write access to. Treat the sheet itself as the only proof of
+delivery, and after any change to the script, submit once and **go look at the
+sheet**.
 
 If you genuinely need to read the response, the endpoint must be same-origin
 (proxy it through your own backend), which defeats the point of this pattern —

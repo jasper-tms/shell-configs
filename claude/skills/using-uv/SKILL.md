@@ -107,13 +107,13 @@ without assuming uv at runtime:
   issue, in general.
 - **Exception: `[tool.uv.sources]` is invisible to pip.** If you point a
   dependency at a local clone or git repo via `--editable`/`[tool.uv.sources]`
-  and it needs to also work for someone running plain `pip install .`,
-  express it directly in `[project.dependencies]` using standard PEP 508
-  syntax instead/also, e.g. `"numpyimage @ git+https://github.com/jasper-tms/npimage"`
-  (note the declared name must match the target's own `[project.name]` —
-  e.g. the `npimage` repo's package is actually named `numpyimage`).
-  Otherwise pip sees only the bare name, tries to fetch it from PyPI, and
-  fails (or worse, installs an unrelated same-named package).
+  and it needs to also work for someone running plain `pip install .`, express
+  it directly in `[project.dependencies]` using standard PEP 508 syntax
+  instead/also, e.g. `"numpyimage @ git+https://github.com/jasper-tms/npimage"`
+  (note the declared name must match the target's own `[project.name]` — e.g.
+  the `npimage` repo's package is actually named `numpyimage`). Otherwise pip
+  sees only the bare name, tries to fetch it from PyPI, and fails (or worse,
+  installs an unrelated same-named package).
 - `uv.lock` is a uv-proprietary format; pip/poetry/conda can't read it. For
   pip-only collaborators who need your exact pins, export a bridge file:
   `uv export --format requirements-txt > requirements.txt`.
