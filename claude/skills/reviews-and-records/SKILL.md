@@ -166,3 +166,11 @@ Unless Jasper has given you the exact wording he wants, draft the review or
 record text and show it to him for approval before posting it. Reviews in
 particular are written in his voice and represent his opinions, so he should
 sign off on the phrasing.
+
+## After posting
+
+Once a comment or issue has been created or edited, give Jasper a link to it
+so he can open and review it directly. `gh issue comment`, `gh issue create`,
+and `gh issue edit` all print the issue's URL on success; for a comment edit
+via the REST API, pass `--jq '.html_url'` on the `PATCH` call to get the
+direct link to that comment.
