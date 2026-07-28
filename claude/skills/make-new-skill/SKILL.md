@@ -1,6 +1,6 @@
 ---
 name: make-new-skill
-description: How to make a new skill. Load when the user asks to make a skill, or when important decisions or discoveries have been made that you think would be useful to put into a new skill for future agents to know about.
+description: Load when the user wants to make or edit a skill, asks about the skills format, or at the end of any work where important decisions or discoveries have been made that would be useful to document for future reference.
 ---
 
 # Skill: Workflow for creating a new skill
@@ -43,6 +43,12 @@ Before creating a new skill, you must do two things:
    `~/.claude/skills/` and any `agent-skills` folders in relevant repos and org
    folders. If one or more exist, talk with the user about whether to extend an
    existing skill instead of creating a new one.
+
+Additionally, if the user has explicitly asked you to stick to the Agent Skills
+Specification, or has asked about the skills format in general, read [our copy
+of the spec file](references/agent-skills-specification.md). Otherwise,
+continue without reading that file, but keep it in mind in case a good reason
+to know the official spec arises.
 
 ## Execute
 
