@@ -7,6 +7,8 @@ set expandtab
 set number
 set hlsearch
 set incsearch
+set ignorecase
+set smartcase
 set ruler
 set clipboard=exclude:.*
 

@@ -6,6 +6,8 @@
 set number
 set hlsearch
 set incsearch
+set ignorecase
+set smartcase
 set laststatus=1
 set ruler
 " Allow text selection via mouse
