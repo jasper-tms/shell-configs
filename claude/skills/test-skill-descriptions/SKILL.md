@@ -56,12 +56,8 @@ time. Every subagent writes a full transcript to a
 `subagents/agent-<agentId>.jsonl` file, where `agentId` is returned in the
 Agent tool result.
 
-Locate that file by its globally-unique `agentId`, NOT by trying to build the
-path yourself. The transcript lives under a directory named after the session's
-*starting* working directory, so if you have since `cd`'d elsewhere (to /tmp, a
-scratchpad, etc.) you cannot reliably reconstruct it, and several sessions can
-have confusingly similar directory names. A glob by ID is location-independent
-and returns exactly one file:
+Locate that file by its globally-unique and working-directory-independent
+`agentId`, not by trying to build the path yourself. Use:
 
 ```bash
 transcript=$(ls ~/.claude/projects/*/*/subagents/agent-<agentId>.jsonl 2>/dev/null)
@@ -71,6 +67,21 @@ grep -q '"skill":"<skill-name-under-test>"' "$transcript" && echo LOADED || echo
 Count only agents whose transcript loaded the skill under test, ignoring other
 skills the task legitimately pulls in (like a code-formatting skill). Record
 the result per prompt in the format `"<prompt>": X/2 Haiku and Y/2 Sonnet`.
+
+## Fixing a description that fails its should-trigger prompts
+
+Change what the description says, not how forcefully it says it. Imperative
+intensifiers ("MUST load", "IMPORTANT") have no measurable effect on whether
+agents load a skill, so do not add them. Two content changes that do move the
+scores:
+
+- **Cover every verb the triggering situations use.** "Load before reading or
+  modifying the source" misses agents who are *explaining* the source; adding
+  "explaining" catches them.
+- **Name the wrong default behavior the skill exists to replace.** An agent
+  asked "how does X work internally" answers by inspecting the source unless
+  the description says something like "Answer 'how does the engine do X' from
+  here, not from code inspection alone."
 
 ## When you use this
 

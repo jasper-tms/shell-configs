@@ -80,6 +80,27 @@ reason to hesitate that the instruction alone doesn't resolve - e.g. a
 scary-looking warning the tool prints, or a step that looks destructive but
 isn't.
 
+### Removing tours of the rejected alternative's failure modes
+When a doc gives one clear instruction, it rarely needs to explain in detail
+why the approach it steers away from would go wrong - a reader following the
+instruction never meets those failure modes. Naming the wrong default ("not by
+doing X") is often worth keeping, since that is what stops a reader from
+drifting into it; the anatomy of how X fails is not. For example:
+
+> Locate that file by its globally-unique `agentId`, NOT by trying to build the
+> path yourself. **The transcript lives under a directory named after the
+> session's *starting* working directory, so if you have since `cd`'d elsewhere
+> (to /tmp, a scratchpad, etc.) you cannot reliably reconstruct it, and several
+> sessions can have confusingly similar directory names.** A glob by ID is
+> location-independent and returns exactly one file:
+
+The bolded sentence is a tour of how the path-building approach fails. Keep the
+instruction and the anti-default, at most with the property that justifies the
+choice folded in as a word or two:
+
+> Locate that file by its globally-unique and working-directory-independent
+> `agentId`, not by trying to build the path yourself. Use:
+
 ## Sharpening skill descriptions
 The `description:` line of a skill is by far the most important part of a skill
 file to spend time optimizing. Because descriptions are loaded into context by
