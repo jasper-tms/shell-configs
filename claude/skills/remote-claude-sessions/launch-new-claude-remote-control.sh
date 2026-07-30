@@ -242,9 +242,20 @@ unset screen_major_version
 
 # Assemble the claude command. --model is only added when a model was
 # requested, so the default (no flag) behavior is unchanged.
+#
+# --prompt-suggestions false: disables the predicted-next-user-prompt feature.
+# In the interactive UI this shows as light grey "ghost text" pre-filled into
+# the input box (e.g. after an interruption) that looks like real typed
+# draft text in a plain-text screen hardcopy, since hardcopy strips all color/
+# attribute info and cannot distinguish it from genuine input. This has
+# repeatedly confused fleet agents managing these sessions via screen into
+# thinking a real, unsent human draft was sitting in the box. Fleet sessions
+# are driven by another agent, not typed into live by a human anyway, so the
+# predicted-prompt feature has no upside here.
 CLAUDE_ARGS=( --remote-control --name "$RC_DISPLAY_NAME" \
               --permission-mode auto \
-              --effort "$EFFORT" )
+              --effort "$EFFORT" \
+              --prompt-suggestions false )
 if [ -n "$MODEL_ID" ]; then
     CLAUDE_ARGS+=( --model "$MODEL_ID" )
 fi
