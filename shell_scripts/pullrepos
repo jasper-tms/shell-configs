@@ -8,6 +8,8 @@ set -m
 
 pull_timeout_secs=10
 pull_max_attempts=3
+max_parallel_pulls=16
+print_pause_secs=0.05
 
 # Run `git pull` in the current directory, killing and retrying it if it
 # doesn't finish within pull_timeout_secs, up to pull_max_attempts times.
@@ -28,7 +30,7 @@ pull_with_retry() {
                 kill -KILL -- -"$pid" 2>/dev/null
                 wait "$pid" 2>/dev/null
                 rm -f "$tmpfile"
-                echo "  git pull timed out after ${pull_timeout_secs}s (attempt $attempt/$pull_max_attempts)" >&2
+                echo "$(pwd): git pull timed out after ${pull_timeout_secs}s (attempt $attempt/$pull_max_attempts)" >&2
                 attempt=$((attempt + 1))
                 continue 2
             fi
@@ -64,6 +66,7 @@ while [ $# -gt 0 ]; do
             echo "already up to date."
             echo "If a pull takes longer than ${pull_timeout_secs}s it is cancelled and retried,"
             echo "up to $pull_max_attempts attempts total."
+            echo "Up to $max_parallel_pulls repos are pulled in parallel."
             exit 0
             ;;
         -*)
@@ -103,20 +106,75 @@ repos_dir=${repos_dir%/}
 
 echo "Running \`git pull\` on all repos within $repos_dir..."
 echo
+
+repo_dirs=()
 for repo in "$repos_dir"/*/.git "$repos_dir"/*/*/.git; do
     if [ ! -d "$repo" ]; then continue; fi
-    repo_dir=${repo%%/.git}
-    cd "$repo_dir"
-    if [ "$verbose" = true ]; then echo "$repo_dir"; fi
-    output=$(pull_with_retry)
-    if [ "$output" = "Already up to date." ]; then
-        if [ "$verbose" = true ]; then
-            echo "$output"
-            echo
+    repo_dirs+=("${repo%%/.git}")
+done
+total_repos=${#repo_dirs[@]}
+
+# Pull repos in the background, capped at max_parallel_pulls running at
+# once, each buffering its formatted output to its own temp file. This way
+# a slow or hung repo doesn't hold up the rest. Below, started-but-not-yet-
+# finished jobs are polled, and each one's buffered output is printed as
+# soon as it finishes (in completion order, not the order repos were
+# found), pacing prints 0.2s apart so two results can never land
+# interleaved even though the pulls themselves run concurrently. Timeout/
+# retry notices from pull_with_retry are not buffered here -- they print to
+# stderr in real time, tagged with their repo path, since that's the
+# information most useful while pulls are still in flight.
+pids=()
+result_files=()
+started=0
+finished=0
+while [ "$finished" -lt "$total_repos" ]; do
+    while [ "$started" -lt "$total_repos" ] && [ "$(jobs -rp | wc -l)" -lt "$max_parallel_pulls" ]; do
+        repo_dir=${repo_dirs[$started]}
+        result_file=$(mktemp)
+        (
+            # Re-assert job control: a background job started inside a
+            # subshell that is itself backgrounded does not get its own
+            # process group on its own, even though -m is inherited from
+            # the parent shell. Without this, pull_with_retry's
+            # kill -- -"$pid" targets a process group that was never
+            # created, silently fails, and the hung `git pull` only ever
+            # stops when it finishes on its own.
+            set -m
+            cd "$repo_dir" || exit 1
+            output=$(pull_with_retry)
+            if [ "$output" = "Already up to date." ]; then
+                if [ "$verbose" = true ]; then
+                    echo "$repo_dir"
+                    echo "$output"
+                    echo
+                fi
+            else
+                echo "$repo_dir"
+                echo "$output"
+                echo
+            fi
+        ) >"$result_file" &
+        pids[$started]=$!
+        result_files[$started]=$result_file
+        started=$((started + 1))
+    done
+
+    dispatched=false
+    for idx in "${!pids[@]}"; do
+        pid=${pids[$idx]}
+        if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then
+            wait "$pid" 2>/dev/null
+            cat "${result_files[$idx]}"
+            rm -f "${result_files[$idx]}"
+            pids[$idx]=
+            finished=$((finished + 1))
+            dispatched=true
+            sleep "$print_pause_secs"
+            break
         fi
-        continue
+    done
+    if [ "$dispatched" = false ]; then
+        sleep 0.2
     fi
-    if [ "$verbose" = false ]; then echo "$repo_dir"; fi
-    echo "$output"
-    echo
 done
