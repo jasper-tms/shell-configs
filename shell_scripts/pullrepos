@@ -1,5 +1,50 @@
 #!/bin/bash
 
+# Enable job control so each backgrounded `git pull` gets its own process
+# group. That lets pull_with_retry() kill the whole subtree (git plus any
+# ssh/http helper it spawned) if a pull hangs, without depending on the
+# GNU-only `timeout`/`gtimeout` commands.
+set -m
+
+pull_timeout_secs=10
+pull_max_attempts=3
+
+# Run `git pull` in the current directory, killing and retrying it if it
+# doesn't finish within pull_timeout_secs, up to pull_max_attempts times.
+# Prints the combined stdout/stderr of the pull (or a failure notice) and
+# returns non-zero only if every attempt timed out.
+pull_with_retry() {
+    local attempt=1
+    local tmpfile output elapsed pid
+    while [ "$attempt" -le "$pull_max_attempts" ]; do
+        tmpfile=$(mktemp)
+        git pull >"$tmpfile" 2>&1 &
+        pid=$!
+        elapsed=0
+        while kill -0 "$pid" 2>/dev/null; do
+            if [ "$elapsed" -ge "$pull_timeout_secs" ]; then
+                kill -TERM -- -"$pid" 2>/dev/null
+                sleep 1
+                kill -KILL -- -"$pid" 2>/dev/null
+                wait "$pid" 2>/dev/null
+                rm -f "$tmpfile"
+                echo "  git pull timed out after ${pull_timeout_secs}s (attempt $attempt/$pull_max_attempts)" >&2
+                attempt=$((attempt + 1))
+                continue 2
+            fi
+            sleep 1
+            elapsed=$((elapsed + 1))
+        done
+        wait "$pid"
+        output=$(cat "$tmpfile")
+        rm -f "$tmpfile"
+        echo "$output"
+        return 0
+    done
+    echo "git pull failed: timed out on all $pull_max_attempts attempts" >&2
+    return 1
+}
+
 verbose=false
 repos_dir=
 while [ $# -gt 0 ]; do
@@ -17,6 +62,8 @@ while [ $# -gt 0 ]; do
             echo "By default only repos with something new to report are printed."
             echo "With -v, every repo is printed as it is pulled, even if it was"
             echo "already up to date."
+            echo "If a pull takes longer than ${pull_timeout_secs}s it is cancelled and retried,"
+            echo "up to $pull_max_attempts attempts total."
             exit 0
             ;;
         -*)
@@ -61,7 +108,7 @@ for repo in "$repos_dir"/*/.git "$repos_dir"/*/*/.git; do
     repo_dir=${repo%%/.git}
     cd "$repo_dir"
     if [ "$verbose" = true ]; then echo "$repo_dir"; fi
-    output=$(git pull 2>&1)
+    output=$(pull_with_retry)
     if [ "$output" = "Already up to date." ]; then
         if [ "$verbose" = true ]; then
             echo "$output"
