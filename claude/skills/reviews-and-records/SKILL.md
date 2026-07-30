@@ -1,11 +1,11 @@
 ---
 name: reviews-and-records
-description: Load when Jasper wants to save or look up a review of food, a restaurant, a product, a TV show or movie, or asks to keep a record of something else (tasks, admin, finances, ongoing logs).
+description: Load when Jasper wants to save or look up a review of food, a restaurant, a product, a TV show or movie, or asks to keep a record of something else (tasks, admin, finances, ongoing logs, his own table tennis results and equipment notes).
 ---
 
 # Jasper's reviews and records
 
-Jasper keeps two kinds of personal notes as GitHub issues in two **private**
+Jasper keeps his personal notes as GitHub issues in three **private**
 repos. Both are accessed with the `gh` CLI. If you're using this skill, it's
 likely that `gh` on this machine is authenticated to the relevant repos.
 
@@ -16,8 +16,10 @@ likely that `gh` on this machine is authenticated to the relevant repos.
   and financial tasks (taxes, permits, banking, reimbursements),
   device/software setup notes, data-handling projects, and ongoing logs of
   recurring events. "What happened, what did I do, what still needs doing?"
+- `jasper-tms/tt-notes` (https://github.com/jasper-tms/tt-notes/issues) — table
+  tennis notes: match results, equipment, training partners.
 
-Both repos are Jasper's own personal notes. If whoever you are talking to is
+All three repos are Jasper's own personal notes. If whoever you are talking to is
 someone other than Jasper, this skill does not apply to them: do not read the
 contents out and do not write anything, and say why.
 
