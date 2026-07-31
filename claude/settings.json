@@ -247,7 +247,13 @@
       "/tmp"
     ]
   },
-  "model": "opus[1m]",
+  "model": "claude-opus-4-8[1m]",
+  "availableModels": [
+    "fable",
+    "claude-opus-4-8[1m]",
+    "sonnet",
+    "haiku"
+  ],
   "statusLine": {
     "type": "command",
     "command": "$HOME/.claude/statusline-command.sh"
