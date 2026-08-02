@@ -6,6 +6,20 @@
 # GNU-only `timeout`/`gtimeout` commands.
 set -m
 
+# Never let a pull block on an interactive credential prompt. With HTTPS
+# remotes and no cached credentials, `git pull` otherwise tries to read a
+# username/password from the controlling terminal -- and with pulls fanned
+# out in parallel below, dozens of them would fight over /dev/tty and hang
+# until the timeout/retry logic kills them (turning "creds aren't cached"
+# into a multi-minute garbled stall). GIT_TERMINAL_PROMPT=0 makes such a
+# repo fail instantly with "could not read Username" instead; those repos
+# are then collected and reported together at the end. Cached credentials
+# still work: credential helpers (store/cache/gh) are consulted before this
+# fallback path. Any inherited askpass helper is unset so it can't
+# reintroduce a GUI/keychain prompt that hangs.
+export GIT_TERMINAL_PROMPT=0
+unset GIT_ASKPASS SSH_ASKPASS
+
 pull_timeout_secs=10
 pull_max_attempts=3
 max_parallel_pulls=16
@@ -17,7 +31,7 @@ print_pause_secs=0.05
 # returns non-zero only if every attempt timed out.
 pull_with_retry() {
     local attempt=1
-    local tmpfile output elapsed pid
+    local tmpfile elapsed pid status
     while [ "$attempt" -le "$pull_max_attempts" ]; do
         tmpfile=$(mktemp)
         git pull >"$tmpfile" 2>&1 &
@@ -38,13 +52,17 @@ pull_with_retry() {
             elapsed=$((elapsed + 1))
         done
         wait "$pid"
-        output=$(cat "$tmpfile")
+        status=$?
+        cat "$tmpfile"
         rm -f "$tmpfile"
-        echo "$output"
-        return 0
+        # Propagate git's own exit status so the caller can tell an auth
+        # failure (git exited non-zero, fast) from a real hang (timed out,
+        # handled above). Auth failures must NOT be retried -- they're not
+        # transient, and retrying just triples the noise.
+        return "$status"
     done
     echo "git pull failed: timed out on all $pull_max_attempts attempts" >&2
-    return 1
+    return 124
 }
 
 verbose=false
@@ -67,6 +85,9 @@ while [ $# -gt 0 ]; do
             echo "If a pull takes longer than ${pull_timeout_secs}s it is cancelled and retried,"
             echo "up to $pull_max_attempts attempts total."
             echo "Up to $max_parallel_pulls repos are pulled in parallel."
+            echo "Interactive credential prompts are disabled: any repo whose"
+            echo "GitHub credentials aren't cached fails instantly (rather than"
+            echo "hanging) and is listed in a summary at the end."
             exit 0
             ;;
         -*)
@@ -126,12 +147,15 @@ total_repos=${#repo_dirs[@]}
 # information most useful while pulls are still in flight.
 pids=()
 result_files=()
+auth_files=()
+auth_failures=()
 started=0
 finished=0
 while [ "$finished" -lt "$total_repos" ]; do
     while [ "$started" -lt "$total_repos" ] && [ "$(jobs -rp | wc -l)" -lt "$max_parallel_pulls" ]; do
         repo_dir=${repo_dirs[$started]}
         result_file=$(mktemp)
+        auth_fail_file=$(mktemp)
         (
             # Re-assert job control: a background job started inside a
             # subshell that is itself backgrounded does not get its own
@@ -143,7 +167,13 @@ while [ "$finished" -lt "$total_repos" ]; do
             set -m
             cd "$repo_dir" || exit 1
             output=$(pull_with_retry)
-            if [ "$output" = "Already up to date." ]; then
+            status=$?
+            if [ "$status" -ne 0 ] && printf '%s' "$output" | grep -qiE 'could not read (Username|Password)|terminal prompts disabled|Authentication failed|Invalid username or (token|password)'; then
+                # Credentials aren't cached/valid. Keep the raw git error out
+                # of the streaming output and record this repo for the
+                # end-of-run "needs authentication" summary instead.
+                printf '%s\n' "$repo_dir" >"$auth_fail_file"
+            elif [ "$output" = "Already up to date." ]; then
                 if [ "$verbose" = true ]; then
                     echo "$repo_dir"
                     echo "$output"
@@ -157,6 +187,7 @@ while [ "$finished" -lt "$total_repos" ]; do
         ) >"$result_file" &
         pids[$started]=$!
         result_files[$started]=$result_file
+        auth_files[$started]=$auth_fail_file
         started=$((started + 1))
     done
 
@@ -167,6 +198,10 @@ while [ "$finished" -lt "$total_repos" ]; do
             wait "$pid" 2>/dev/null
             cat "${result_files[$idx]}"
             rm -f "${result_files[$idx]}"
+            if [ -s "${auth_files[$idx]}" ]; then
+                auth_failures+=("$(cat "${auth_files[$idx]}")")
+            fi
+            rm -f "${auth_files[$idx]}"
             pids[$idx]=
             finished=$((finished + 1))
             dispatched=true
@@ -178,3 +213,19 @@ while [ "$finished" -lt "$total_repos" ]; do
         sleep 0.2
     fi
 done
+
+# Report any repos that couldn't authenticate, all together at the end so
+# they aren't lost among the streamed per-repo output. All remotes here are
+# HTTPS, so an uncached machine fails every repo the same way -- one clear
+# summary with a fix hint beats N interleaved git errors.
+if [ "${#auth_failures[@]}" -gt 0 ]; then
+    echo
+    echo "Could not authenticate to GitHub for ${#auth_failures[@]} repo(s):"
+    for repo_dir in "${auth_failures[@]}"; do
+        echo "  - $repo_dir"
+    done
+    echo
+    echo "Credentials aren't cached. Set them up once, then re-run pullrepos:"
+    echo "  gh auth login                                  # recommended, or"
+    echo "  git config --global credential.helper store    # cache them on disk"
+fi
