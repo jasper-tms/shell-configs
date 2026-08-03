@@ -41,11 +41,11 @@
 #                          positional argument. Defaults to
 #                          "Wait for further instructions" so the new
 #                          session takes a first turn for initialization.
-#   -t, --tui    <mode>    Terminal renderer: fullscreen (default) or
-#                          default. "fullscreen" gives scrollback that the
-#                          mouse wheel drives directly, instead of screen's
-#                          copy mode. Set it here, not with /tui, which
-#                          restarts claude and drops the pin set below.
+#   -t, --tui    <mode>    Terminal renderer: default (classic) or fullscreen.
+#                          Default (the script default) prints to the terminal
+#                          so screen copy mode (ctrl+A esc) scrolls history;
+#                          fullscreen's mouse-wheel scrollback is dead here
+#                          (mouse disabled). Set here, not via /tui (restarts).
 #   -h, --help             Show this help and exit.
 #
 # Examples:
@@ -53,7 +53,7 @@
 #   ./launch-new-claude-remote-control.sh "Wait for further instructions"
 #   ./launch-new-claude-remote-control.sh --model fable "/developer Run a loop"
 #   ./launch-new-claude-remote-control.sh -m fable -d ~/repos/jasper-tms/swiss-table-tennis-chat
-#   ./launch-new-claude-remote-control.sh --tui default
+#   ./launch-new-claude-remote-control.sh --tui fullscreen
 #   CLAUDE_WORK_DIR=/some/path ./launch-new-claude-remote-control.sh
 
 set -euo pipefail
@@ -70,7 +70,7 @@ EFFORT="high"
 PROMPT=""
 PROMPT_SET=0
 DIR_OVERRIDE=""
-TUI_MODE="fullscreen"
+TUI_MODE="default"
 
 # --- Parse options (order-independent flags plus one positional prompt) ---
 while [ $# -gt 0 ]; do
@@ -271,11 +271,27 @@ CLAUDE_ARGS+=( "$PROMPT" )
 # rather than with /tui, which relaunches claude and drops this variable. Passed
 # in both directions so the renderer never falls back to claude's own default.
 #
-# Fullscreen is the default because it keeps its scrollback inside the claude
-# process: the mouse wheel scrolls the conversation without screen's copy mode
-# (ctrl+A esc), and that history survives reattaching from another terminal.
+# Classic (default) is the default renderer: it prints the conversation to the
+# normal terminal, so screen's copy mode (ctrl+A esc) can scroll the history.
+# Fullscreen instead keeps scrollback inside claude, driven by the mouse wheel,
+# but this script disables mouse tracking (see below), which would leave
+# fullscreen with no working way to scroll back here.
+#
+# CLAUDE_CODE_DISABLE_MOUSE=1 stops claude from enabling xterm mouse tracking.
+# Without it, moving the mouse over an attached terminal streams mouse-motion
+# escape sequences that, through the screen + SSH + Apple Terminal.app chain,
+# are not consumed and instead leak into claude's input box as junk text (e.g.
+# "66;1M65;2M50M3..."). These fleet sessions are driven by another agent over
+# screen, not by a human moving a mouse inside claude, and the intended reader
+# scrolls conversation history with screen's own copy mode (ctrl+A esc), which
+# this does not affect. The only thing disabled is claude's in-process
+# mouse-wheel scrolling, which was already unusable through this chain anyway
+# (it is what produced the junk). Scoped to launches from this script rather
+# than set globally, so self-launched claude sessions outside screen keep
+# normal mouse scrolling.
 if [ "$TUI_MODE" = "fullscreen" ]; then NO_FLICKER=1; else NO_FLICKER=0; fi
 screen -dmS "$SCREEN_NAME" env CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1 \
+    CLAUDE_CODE_DISABLE_MOUSE=1 \
     "CLAUDE_CODE_NO_FLICKER=$NO_FLICKER" claude "${CLAUDE_ARGS[@]}"
 
 echo "Launched detached screen: $SCREEN_NAME"
