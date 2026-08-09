@@ -191,7 +191,6 @@
       "Read(~/.npmrc)",
       "Read(~/.pypirc)",
       "Read(~/.bashrc)",
-      "Read(~/.zshrc)",
       "Read(~/.bash_profile)",
       "Read(~/.zprofile)",
       "Read(~/.zshenv)",
