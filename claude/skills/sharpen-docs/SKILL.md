@@ -101,6 +101,25 @@ choice folded in as a word or two:
 > Locate that file by its globally-unique and working-directory-independent
 > `agentId`, not by trying to build the path yourself. Use:
 
+### Removing justifications for the road not taken
+When a doc describes how something *is* arranged, it rarely needs to argue why
+some *other* arrangement wasn't chosen. The reader only ever interacts with the
+actual state of things, so a counterfactual they will never face is not
+something they can act on. This is distinct from naming an anti-default (the
+previous example): there the reader could still drift into the wrong choice, so
+the "not X" earns its place; here the alternative isn't available to the reader
+at all - it's a design decision already settled, narrated for no one's benefit.
+For example:
+
+> Follow `setup.md` - it walks you through symlinking each config into place.
+> **The commands are explicit rather than hidden in a script, so if a step
+> fails you can investigate and fix it in context.**
+
+The bolded sentence defends the chosen design against a script that doesn't
+exist. Cut it whole - what remains is everything the reader acts on:
+
+> Follow `setup.md` - it walks you through symlinking each config into place.
+
 ## Sharpening skill descriptions
 The `description:` line of a skill is by far the most important part of a skill
 file to spend time optimizing. Because descriptions are loaded into context by
