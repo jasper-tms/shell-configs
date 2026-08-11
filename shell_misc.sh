@@ -4,6 +4,9 @@ if ${IS_LINUX:=false}; then
     if [ -f "$SHELL_CONFIGS_DIR/ls_colors.txt" ]; then
         eval $(dircolors -b $SHELL_CONFIGS_DIR/ls_colors.txt)
     fi
+    # GNU ls only colorizes when given --color; the LS_COLORS palette above does
+    # nothing on its own (unlike BSD ls, colorized via CLICOLOR in the mac block).
+    alias ls='ls --color=auto'
 
     # Remap Caps Lock button to be a Ctrl button
     if which setxkbmap > /dev/null; then
@@ -20,6 +23,25 @@ if ${IS_MAC:=false}; then
     # pos 11 = other-writable dir (Hg = bold white on cyan)
     export LSCOLORS=GxDxBxDxCxEgEdxbxgxcHg
 fi
+
+# configure.sh now owns ls coloring, so any leftover ls-color setup in this
+# shell's startup file is redundant and can override the settings above. Warn.
+if ${IS_INTERACTIVE:=false}; then
+    if ${IS_BASH:=false}; then
+        shell_startup_file="$HOME/.bashrc"
+    elif ${IS_ZSH:=false}; then
+        shell_startup_file="$HOME/.zshrc"
+    fi
+    if [ -n "$shell_startup_file" ] && [ -f "$shell_startup_file" ] && \
+            grep -Eq 'dircolors|LS_COLORS|LSCOLORS|CLICOLOR|alias ls=' "$shell_startup_file"; then
+        printf '\n%s\n\n' "WARNING: Your $shell_startup_file sets ls colors, which $SHELL_CONFIGS_DIR/shell_misc.sh now manages. Consider removing any lines involving dircolors, LS_COLORS, LSCOLORS, CLICOLOR, or 'alias ls=' from $shell_startup_file"
+    fi
+    unset shell_startup_file
+fi
+
+alias grep='grep --color=auto'
+which ffmpeg > /dev/null && alias ffmpeg='ffmpeg -hide_banner'
+which ffprobe > /dev/null && alias ffprobe='ffprobe -hide_banner'
 
 # GNU screen before version 5.0 cannot render 24-bit truecolor. When
 # COLORTERM=truecolor is inherited from the outer terminal, applications that

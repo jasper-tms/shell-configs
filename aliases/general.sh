@@ -44,7 +44,3 @@ if ${IS_LINUX:=false}; then
     alias cdshortcuts='cd /usr/share/applications'
 fi
 
-#Provide useful default arguments for some programs
-alias ffmpeg="ffmpeg -hide_banner"
-alias ffprobe="ffprobe -hide_banner"
-
