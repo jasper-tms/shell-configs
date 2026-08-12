@@ -242,20 +242,9 @@ unset screen_major_version
 
 # Assemble the claude command. --model is only added when a model was
 # requested, so the default (no flag) behavior is unchanged.
-#
-# --prompt-suggestions false: disables the predicted-next-user-prompt feature.
-# In the interactive UI this shows as light grey "ghost text" pre-filled into
-# the input box (e.g. after an interruption) that looks like real typed
-# draft text in a plain-text screen hardcopy, since hardcopy strips all color/
-# attribute info and cannot distinguish it from genuine input. This has
-# repeatedly confused fleet agents managing these sessions via screen into
-# thinking a real, unsent human draft was sitting in the box. Fleet sessions
-# are driven by another agent, not typed into live by a human anyway, so the
-# predicted-prompt feature has no upside here.
 CLAUDE_ARGS=( --remote-control --name "$RC_DISPLAY_NAME" \
               --permission-mode auto \
-              --effort "$EFFORT" \
-              --prompt-suggestions false )
+              --effort "$EFFORT" )
 if [ -n "$MODEL_ID" ]; then
     CLAUDE_ARGS+=( --model "$MODEL_ID" )
 fi
@@ -289,9 +278,17 @@ CLAUDE_ARGS+=( "$PROMPT" )
 # (it is what produced the junk). Scoped to launches from this script rather
 # than set globally, so self-launched claude sessions outside screen keep
 # normal mouse scrolling.
+#
+# CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=false turns off the grey "ghost text"
+# hint in the input box (accepted with Tab; the "Prompt suggestions" toggle in
+# /config). A screen hardcopy can't tell this hint from a real typed draft, so
+# it misleads the agents that drive these sessions over screen. The interactive
+# --prompt-suggestions CLI flag does NOT control this - the env var does, as a
+# per-session in-memory override that writes nothing to global settings.json.
 if [ "$TUI_MODE" = "fullscreen" ]; then NO_FLICKER=1; else NO_FLICKER=0; fi
 screen -dmS "$SCREEN_NAME" env CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1 \
     CLAUDE_CODE_DISABLE_MOUSE=1 \
+    CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=false \
     "CLAUDE_CODE_NO_FLICKER=$NO_FLICKER" claude "${CLAUDE_ARGS[@]}"
 
 echo "Launched detached screen: $SCREEN_NAME"
