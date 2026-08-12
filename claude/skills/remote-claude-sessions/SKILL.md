@@ -88,6 +88,24 @@ screen -S claude-remote-N -X stuff $'\r'
 This is the same split-call shape the `!` shell-mode workaround below uses
 (which additionally needs the leading `!` sent separately).
 
+**Keep each `stuff` payload under 750 bytes.** Past that screen silently
+discards the *whole* string — nothing reaches the input box, and `stuff` still
+exits 0, so the symptom above (text lands but never submits) does not apply. The
+cap is screen's compile-time `MAXSTR`, so you cannot raise it, and another build
+may set it lower.
+
+For a longer message, split it into under-750-byte chunks, capturing the screen
+after each to confirm it landed, then send the Enter as its own call:
+
+```
+screen -S claude-remote-N -X stuff 'chunk 1 ...'
+screen -S claude-remote-N -X stuff 'chunk 2 ...'
+screen -S claude-remote-N -X stuff $'\r'
+```
+
+Check the input box is empty first: chunks append to whatever is staged there,
+and the Enter submits the lot as one message.
+
 `screen -X stuff` expands `$VAR` references (from screen's own environment)
 before injecting the bytes: `stuff '$HOME'` sends the value of `HOME` (e.g.
 `/home/user`). Escape any literal `$` you want to send with a backslash: `stuff
@@ -101,17 +119,10 @@ hint), and a command submitted from that mode runs directly in the visible
 terminal, with its raw output printed inline — not routed through the agent's
 own Bash tool call.
 
-Sending the whole thing as one atomic `stuff` string, e.g.
-`screen -S claude-remote-N -X stuff $'!some-command\r'`, does **not** reliably
-trigger this mode — the session usually treats it as a chat message that
-happens to start with `!`, and the agent decides on its own whether/how to run
-it via its Bash tool (where you can't see raw stdout, and the auto-mode
-permission classifier applies to whatever it chooses to run — which may differ
-from what you sent).
-
-To land a real shell command, send the `!`, the command text, and the Enter
-key as **three separate `stuff` calls**, with a short pause between each so
-the UI has time to switch into shell mode before the rest arrives:
+Sending it as one string (`stuff $'!some-command\r'`) does **not** reliably
+trigger this mode; it usually lands as an ordinary chat message that happens to
+start with `!`. Send the `!`, the command text, and the Enter as **three
+separate `stuff` calls**, pausing between each so the UI can switch modes:
 
 ```
 screen -S claude-remote-N -X stuff '!'
@@ -121,9 +132,8 @@ sleep 1
 screen -S claude-remote-N -X stuff $'\r'
 ```
 
-Verify by capturing the screen afterward — a genuine shell-mode run shows the
-command echoed as `! your command here` followed by its raw output, directly
-in the transcript.
+Verify by capturing the screen: a genuine shell-mode run echoes the command as
+`! your command here` followed by its raw output.
 
 ## Listing the fleet
 
