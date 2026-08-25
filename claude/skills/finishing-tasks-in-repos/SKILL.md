@@ -31,9 +31,6 @@ unrelated changes don't get staged accidentally: use `git apply --cached`
 command(s) in the commit script instead of `git add` when necessary to stage
 your changes to any mixed files.
 
-If the user asks you to run any commit script yourself, do so, then verify the
-completed commit contains exactly the intended changes and nothing extra.
-
 ## Commit messages
 
 The commit message must be under 73 characters and start with a verb. Only add
@@ -42,3 +39,10 @@ big or complex commits, around a third of the time. Pass extended messages via
 a stdin heredoc like `git commit -F - <<'EOF' ... EOF` (NOT
 `git commit -m "$(cat <<'EOF' ... EOF)"`, which fails to parse correctly in
 some bash versions).
+
+## When asked to run the script yourself
+If the user explicitly asks you to run a commit script yourself, do so, then
+verify the completed commit contains exactly the intended changes and nothing
+extra. This is to guard against the possibility that another agent edited one
+of the files that your commit script runs `git add` on between you looking at
+the file and you running the commit script.
