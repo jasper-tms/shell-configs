@@ -6,18 +6,20 @@ alias vialiases="vi $SHELL_CONFIGS_DIR/aliases/general.sh"
 
 
 #One line convenience functions
-alias vir='vi -- "$(ls -tp | grep -v "/$" | head -1)"'
-alias vio='vi -- "$(ls -tp | grep -v "/$" | tail -1)"'
-alias cdr='cd -- "$(ls -td -- */ | head -1)"'
-alias cdo='cd -- "$(ls -td -- */ | tail -1)"'
+alias vir='vi -- "$(ls -tp | grep -v "/$" | head -1)"' #vim the most recently edited file (not folder)
+alias vio='vi -- "$(ls -tp | grep -v "/$" | tail -1)"' #vim the least recently edited file (not folder)
+alias cdr='cd -- "$(ls -td -- */ | head -1)"' #Change directory into the most recently edited folder
+alias cdo='cd -- "$(ls -td -- */ | tail -1)"' #Change directory into the least recently edited folder
 alias cdrealpath='cd -- "$(realpath .)"'
 alias dc=cd  # Resist typos
 alias c='clear'
 if ${IS_LINUX:=false}; then
     alias o='xdg-open'
+    alias or='xdg-open -- "$(ls -tp | grep -v "/$" | head -1)"' #Open the most recently edited file (not folder)
     alias copy='xclip -selection clipboard'
 elif ${IS_MAC:=false}; then
     alias o='open'
+    alias or='open -- "$(ls -tp | grep -v "/$" | head -1)"' #Open the most recently edited file (not folder)
     alias copy='pbcopy'
 fi
 
@@ -31,8 +33,8 @@ alias lt='ls -Flhtr' #Most recent edit at the bottom
 alias ltd='ls -lhtrd -- */' #Most recent edit at the bottom, folders only
 alias lz='ls -lShr --color=always | grep -v "^d"' #Largest at the bottom, files only (no folders); --color=always keeps colors through the grep pipe
 if ${IS_LINUX:=false}; then #-v options below are linux-specific
-    alias lv='ls -Flhv' #sorts output numerically instead of by string order
-    alias lvd='ls -lhvd -- */' #sorts output numerically instead of by string order, folders only
+    alias lv='ls -Flhv' #Sort output numerically instead of by string order
+    alias lvd='ls -lhvd -- */' #Sort output numerically instead of by string order, folders only
 fi
 
 
