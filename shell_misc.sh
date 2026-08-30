@@ -9,7 +9,7 @@ if ${IS_LINUX:=false}; then
     alias ls='ls --color=auto'
 
     # Remap Caps Lock button to be a Ctrl button
-    if which setxkbmap > /dev/null; then
+    if [ -n "$DISPLAY" ] && which setxkbmap > /dev/null; then
         setxkbmap -option ctrl:nocaps
     fi
     # Provide a way out if the user is stuck in Caps Lock by allowing
