@@ -22,6 +22,9 @@ before committing, update the same script as needed.
 
 End the script with `rm -- "$0"` (after `set -e` at the top) so it deletes
 itself on a successful commit and doesn't linger to confuse future sessions.
+If the script must `cd`, first capture an absolute self-path
+(`self="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"`) and `rm -- "$self"`,
+since a relative `$0` won't resolve after the `cd`.
 
 ## Unrelated changes in the same files
 
