@@ -19,6 +19,17 @@ instructions for a uv shebang instead.
   avoid needing to escape the apostrophe.
 
 
+## Helper functions
+Don't proliferate small named helpers. Before writing one, reach for an existing
+utility (e.g. in a `utils` module) that already does the job. Then place logic by
+how it's used:
+- Used only once or twice: inline it, don't declare a function.
+- Used often but only within one function: nest it in that function, with a
+  plain (non-underscore) name.
+- Truly general-purpose and non-trivial: put it in the relevant `utils` module.
+  Inline a trivial operation rather than making it a utility.
+
+
 ## Full example including additional docstring formatting rules
 ```python
 #!/usr/bin/env python3
