@@ -17,9 +17,9 @@ that contains a SKILL.md is indexed. The INDEX.md is (over)written in
 SKILLS_DIR and looks exactly like this, and nothing more:
 
     # Skill index for `<repo-relative-folder>/`
-    Each skill below can be found at `<repo-relative-folder>/<skill-name>/SKILL.md`
-    - name: <skill-1-name>. description: <description>
-    - name: <skill-2-name>. description: <description>
+    Each line below lists a single skill as `- <skill-name>: <skill-description>`. Each skill can be found alongside this INDEX.md file at `<skill-name>/SKILL.md`
+    - <skill-1-name>: <description>
+    - <skill-2-name>: <description>
 
 The `<repo-relative-folder>` is the folder's path from its git repository
 root, prefixed with the repo's own directory name (e.g.
@@ -113,10 +113,11 @@ def build_index(skills_dir: Path) -> str:
 
     header = f"# Skill index for `{folder}/`"
     path_line = (
-        f"Each skill below can be found at "
-        f"`{folder}/<skill-name>/SKILL.md`"
+        "Each line below lists a single skill as "
+        "`- <skill-name>: <skill-description>`. Each skill can be found "
+        "alongside this INDEX.md file at `<skill-name>/SKILL.md`"
     )
-    bullets = [f"- name: {name}. description: {description}"
+    bullets = [f"- {name}: {description}"
                for name, description in entries]
     return "\n".join([header, path_line, *bullets]) + "\n"
 
