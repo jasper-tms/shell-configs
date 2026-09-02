@@ -63,6 +63,80 @@ Each skill below can be found at `raspberry-pi/agent-skills/<skill-name>/SKILL.m
 ...
 ```
 
+## Validating skill frontmatter
+
+The Agent Skills spec makes both `name:` and `description:` mandatory, and
+requires each skill's `name:` to match its parent directory name. This inline
+check enforces all three across every skill the global listing knows about. It
+reads the folder set straight from
+`~/repos/jasper-tms/raspberry-pi/agent-skills/_SKILL_LISTING.md` (no hardcoded
+folder list to drift out of date), so a skill added anywhere the listing covers
+gets checked automatically, and it reuses `build_index.py`'s frontmatter parser.
+Run it and route any output into the report's **Needs attention**:
+
+```bash
+python3 - <<'PY'
+import re
+import sys
+from pathlib import Path
+
+tidy_dir = Path(
+    "~/repos/jasper-tms/shell-configs/claude/skills/tidy-repos-and-skills"
+).expanduser()
+sys.path.insert(0, str(tidy_dir))
+from build_index import read_frontmatter  # reuse the same frontmatter parser
+
+listing = Path(
+    "~/repos/jasper-tms/raspberry-pi/agent-skills/_SKILL_LISTING.md"
+).expanduser()
+
+# Derive every (folder, skill-name) pair from the listing: a header naming an
+# absolute path sets the folder (and the base for relative sub-folder headers
+# like the swiss repo's `### agent-skills/`); bullets beneath it are its skills.
+pairs, base, folder = [], None, None
+for line in listing.read_text(encoding="utf-8").splitlines():
+    header = re.match(r"^#+\s+(.*)$", line)
+    if header:
+        text = header.group(1).strip().strip("`").rstrip("/")
+        if text.startswith(("~", "/")):
+            base = folder = Path(text).expanduser()
+        elif re.fullmatch(r"[\w.-]+", text) and base is not None:
+            folder = base / text
+        else:
+            folder = None  # prose header, not a folder
+        continue
+    bullet = re.match(r"^-\s+(\S+)", line)
+    if bullet and folder is not None:
+        pairs.append((folder, bullet.group(1).strip("`")))
+
+problems = []
+for folder, name in pairs:
+    if not folder.is_dir():
+        continue  # repo not cloned on this machine; nothing to check here
+    skill_md = folder / name / "SKILL.md"
+    if not skill_md.is_file():
+        problems.append(f"{folder / name}: listed but no SKILL.md on disk")
+        continue
+    fields = read_frontmatter(skill_md)
+    fm_name = fields.get("name", "").strip()
+    description = fields.get("description", "").strip()
+    if not fm_name:
+        problems.append(f"{skill_md}: missing mandatory name:")
+    elif fm_name != name:
+        problems.append(f"{skill_md}: name '{fm_name}' != folder '{name}'")
+    if not description:
+        problems.append(f"{skill_md}: missing mandatory description:")
+
+print("\n".join(problems) or "all listed skills valid")
+sys.exit(1 if problems else 0)
+PY
+```
+
+Absent folders (repos not cloned on this machine) are skipped. A `listed but no
+SKILL.md on disk` line means the listing is stale - normally the reconcile step
+below has already removed such an entry; if it persists, the listing points at a
+skill that no longer exists.
+
 ## Nightly sequence
 
 Run these in order. Keep a running note of everything worth reporting.
@@ -116,14 +190,22 @@ It carries names and locations only - no descriptions (those live in the
   `(NOT symlinked into ~/.claude/skills)`); only add/remove skill lines, don't
   reflow the prose.
 
-### 4. Commit and push per repo
+### 4. Validate skill frontmatter
+
+Run the check from "Validating skill frontmatter" above (now that the listing is
+reconciled against disk). Add any problems it prints - a missing mandatory
+`name:` or `description:`, or a `name:` that doesn't match its folder - to the
+report's **Needs attention** section. These need a human to fix the offending
+`SKILL.md`; the nightly task does not rewrite skill frontmatter itself.
+
+### 5. Commit and push per repo
 
 For each repo touched in steps 1-3, commit the changed files with a verb-first
 message under 73 characters (e.g. `Refresh skill INDEX.md files`,
 `Sync _SKILL_LISTING.md with skills on disk`) and push to its upstream. Never
 force-push. A repo with no upstream or a rejected push: skip and report it.
 
-### 5. Write the report file
+### 6. Write the report file
 
 Write your final summary to the path in the `TIDY_REPORT_FILE` environment
 variable. The **first line** is the machine-readable status the wrapper keys

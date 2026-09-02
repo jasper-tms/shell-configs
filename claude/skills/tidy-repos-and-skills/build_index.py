@@ -105,7 +105,10 @@ def build_index(skills_dir: Path) -> str:
         if not (child.is_dir() and skill_md.is_file()):
             continue
         fields = read_frontmatter(skill_md)
-        name = fields.get("name") or child.name
+        name = fields.get("name", "").strip()
+        if not name:
+            print(f"warning: {skill_md} has no name", file=sys.stderr)
+            name = child.name
         description = fields.get("description", "").strip()
         if not description:
             print(f"warning: {skill_md} has no description", file=sys.stderr)
