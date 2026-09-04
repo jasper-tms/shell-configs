@@ -8,13 +8,23 @@ if ${IS_LINUX:=false}; then
     # nothing on its own (unlike BSD ls, colorized via CLICOLOR in the mac block).
     alias ls='ls --color=auto'
 
-    # Remap Caps Lock button to be a Ctrl button
-    if [ -n "$DISPLAY" ] && which setxkbmap > /dev/null; then
+    # Remap Caps Lock to Ctrl. X11 uses setxkbmap; under Wayland setxkbmap only
+    # reaches XWayland apps, so use gsettings instead. Check Wayland first,
+    # since XWayland also sets $DISPLAY.
+    if [ -n "$WAYLAND_DISPLAY" ] && which gsettings > /dev/null; then
+        gsettings set org.gnome.desktop.input-sources xkb-options "['ctrl:nocaps']"
+    elif [ -n "$DISPLAY" ] && which setxkbmap > /dev/null; then
         setxkbmap -option ctrl:nocaps
     fi
-    # Provide a way out if the user is stuck in Caps Lock by allowing
-    # them to re-enable the Caps Lock key using a caps-only command
-    alias STOPYELLING="setxkbmap -option"
+    # Escape hatch if you get stuck in Caps Lock: STOPYELLING is all-caps so
+    # you can still type it. Re-enables the Caps Lock key.
+    STOPYELLING() {
+        if [ -n "$WAYLAND_DISPLAY" ] && which gsettings > /dev/null; then
+            gsettings reset org.gnome.desktop.input-sources xkb-options
+        else
+            setxkbmap -option
+        fi
+    }
 fi
 if ${IS_MAC:=false}; then
     # From https://apple.stackexchange.com/questions/33677/how-can-i-configure-mac-terminal-to-have-color-ls-output
