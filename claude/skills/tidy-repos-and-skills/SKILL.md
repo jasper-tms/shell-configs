@@ -137,6 +137,33 @@ SKILL.md on disk` line means the listing is stale - normally the reconcile step
 below has already removed such an entry; if it persists, the listing points at a
 skill that no longer exists.
 
+## Watch for asserted-state drift
+
+Beyond the fixed checks above, stay alert for the general failure they are all
+instances of: **a place that asserts some state should be true, which has
+silently drifted from what is actually true.** The index files assert "these
+skills exist"; frontmatter asserts "`name:` matches the folder"; a README
+asserts "the cron line is `0 3 * * *`" or "this file is the source of truth"; a
+committed `crontab.txt` asserts "this is the live crontab" (the machine-specific
+`crontab -l` vs `crontab.txt` diff, which lives in this task's `run.sh` prompt,
+not here). These drift because the assertion and the reality are edited at
+different times by different people or agents.
+
+You cannot enumerate every such assertion in advance — new ones appear with every
+refactor. So when, in the course of the nightly pull and index work, you happen
+to notice a doc, README, comment, or config that clearly states something now
+contradicted by reality (a stale schedule, a "source of truth" that has moved, a
+path or filename that no longer exists, a count that no longer matches), record
+it under **Needs attention** with the file and the specific contradiction. Do
+**not** auto-fix it: the correct direction is usually ambiguous (fix the
+assertion, or fix the reality?), and that judgment is a human's. Reporting it is
+the whole value — a drifted assertion is invisible until someone trusts it.
+
+If a particular assertion turns out to be worth checking every single night,
+that is a signal to promote it to a deterministic check (like the frontmatter
+validator above, or the crontab diff in `run.sh`) rather than relying on
+noticing it.
+
 ## Nightly sequence
 
 Run these in order. Keep a running note of everything worth reporting.
@@ -219,7 +246,8 @@ on:
 After the status line, write a short human summary: repos rebased, INDEX.md /
 _SKILL_LISTING.md changes committed and pushed (name the repos), and a clearly
 separated **Needs attention** section for rebase conflicts, credential
-failures, and rejected pushes. If you could not finish, still write the file
+failures, rejected pushes, and any asserted-state drift you noticed (see "Watch
+for asserted-state drift"). If you could not finish, still write the file
 with `STATUS: report` and explain how far you got - a missing report file makes
 the wrapper send a generic failure email.
 
