@@ -6,5 +6,13 @@ for envname in ~/.virtualenvs/*/; do
         echo "No .../bin/python found for $envname"
         continue
     fi
+    # Environments created by `uv venv` contain no pip package at all, so there
+    # is nothing here to upgrade. (Some of them do have a bin/pip, but that is
+    # a shim forwarding to `uv pip`, not a real pip -- so test for the importable
+    # module rather than for the file.)
+    if ! $pypath -c "import pip" > /dev/null 2>&1; then
+        echo "Skipping $envname (no pip installed; uv-created environments have none)"
+        continue
+    fi
     $pypath -m pip install --upgrade pip
 done

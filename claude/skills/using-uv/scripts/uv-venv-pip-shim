@@ -1,0 +1,58 @@
+#!/bin/bash
+# A stand-in for pip, in a virtual environment created by `uv venv`.
+#
+# `uv venv` does not install pip into the environments it creates. Without a
+# file at this path, a `pip` typed while this environment is active would not
+# be found in this bin directory, so the shell would keep walking PATH until
+# it found some unrelated pip -- one that hardcodes its own interpreter in its
+# shebang, pays no attention to $VIRTUAL_ENV, installs into whichever
+# environment it belongs to, and reports success. The package would then not
+# be importable from here, and nothing in the output would explain why.
+#
+# So hand everything to `uv pip` instead, pinned to this environment's own
+# interpreter through UV_PYTHON. UV_PYTHON takes precedence over $VIRTUAL_ENV,
+# which means running this file always acts on the environment that contains
+# it, even when a different environment happens to be active.
+#
+# Two things to know:
+#  - `uv pip` implements the subcommands that get used day to day (install,
+#    uninstall, list, freeze, show, tree, check, sync, compile) but not every
+#    one of pip's, so something like `pip config list` will fail with an
+#    unrecognized-subcommand error instead of running. That is the intended
+#    tradeoff: erroring is better than acting on the wrong environment.
+#  - This only covers the `pip` command. `python -m pip` still fails with
+#    "No module named pip", because there genuinely is no pip package
+#    installed here. Use `pip` or `uv pip` instead.
+
+environment_root="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+
+# Find uv. Checking a few standard install locations after PATH matters
+# because this file gets run from cron jobs, Makefiles, and other places with
+# a stripped-down PATH that does not include ~/.local/bin.
+uv_executable="$(command -v uv 2>/dev/null)"
+if [ -z "$uv_executable" ]; then
+    for candidate in "$HOME/.local/bin/uv" /usr/local/bin/uv /opt/homebrew/bin/uv; do
+        if [ -x "$candidate" ]; then
+            uv_executable="$candidate"
+            break
+        fi
+    done
+fi
+
+case "${1:-}" in
+    -V|--version)
+        echo "pip: forwarding to uv pip, for the environment at $environment_root"
+        [ -n "$uv_executable" ] && "$uv_executable" --version
+        exit 0
+        ;;
+esac
+
+if [ -z "$uv_executable" ]; then
+    echo "pip: uv could not be found, and $environment_root" >&2
+    echo "     contains no pip of its own, so there is no safe way to run this." >&2
+    echo "     Install uv (https://docs.astral.sh/uv/) to use this environment." >&2
+    exit 1
+fi
+
+export UV_PYTHON="$environment_root/bin/python"
+exec "$uv_executable" pip "$@"
