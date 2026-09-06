@@ -65,12 +65,54 @@ Option 1 ("Yes, I trust this folder") is pre-selected. Send Enter using `\r`
 Then wait ~3 seconds, recapture the screen, and confirm "Remote Control active"
 appears before reporting success.
 
-## Sending other input to a session
+## Sending a chat message (preferred: SendMessage)
 
-Same mechanism — `screen -X stuff` with `\r` for Enter. Embed text the same
-way: `$'some text\r'`. Short input — a slash command like `/compact`, or a
-one-line chat message — submits fine as a single atomic `stuff` call with a
-trailing `\r`.
+Once a session is up at the main UI, the clean way to send it a **chat message**
+is the `SendMessage` tool — not `screen -X stuff`. It has none of the `stuff`
+hazards: no 750-byte cap, no paste-detection split-call dance, no `\r` handling,
+and multi-line messages are fine. Best of all, the session's reply comes **back
+to you automatically** as a `<cross-session-message>` — you don't have to
+`hardcopy` the screen to read the response.
+
+1. Find the target with the `ListAgents` tool. A live launcher session appears
+   as a peer addressed by its **RC display name** (e.g. `rpi-3`), shown as
+   `interactive` and either `idle` or `busy`. The RC name's number matches the
+   screen name: `rpi-3` ⇄ screen `claude-remote-3`.
+
+2. Send it:
+
+   ```
+   SendMessage({to: "rpi-3", message: "your message, any length, multi-line ok"})
+   ```
+
+   The bare name resolves as long as one *live* peer has it. `ListAgents` may
+   also list stale **offline** rows with the same name (old Remote Control
+   sessions) — ignore those; only append a ` [ref]` from the listing if an error
+   says the name is ambiguous.
+
+3. The message arrives at the peer as `Message from @<your-session>: …`. A
+   launcher session runs in Auto Mode, so it processes and acts on the message
+   automatically at its next tool round. Its reply is delivered to you as
+   `<cross-session-message from-name="rpi-3" …>`; to reply back, `SendMessage`
+   with `to` set to that `from-name` (or copy the `from=` address).
+
+**Limits — when to fall back to `screen -X stuff` below instead:**
+
+- **Slash commands do NOT execute via SendMessage** (tested). A message like
+  `/compact` arrives as ordinary prompt text, not typed into the input box, so
+  the peer reads it rather than running it. Send slash commands with `stuff`.
+- **`!` shell-mode commands** need real terminal input — SendMessage can't do
+  them; use `stuff`.
+- **Offline or pre-UI sessions** aren't messageable peers (a session stalled on
+  the trust dialog isn't up yet). Reach those only via `screen`.
+
+## Sending other input via `screen -X stuff` (slash commands, shell mode, fallback)
+
+Use `screen -X stuff` for slash commands, `!` shell-mode commands, and any
+session not reachable as a live peer (see limits above). `\r` is Enter (`\n`
+does NOT work); embed text as `$'some text\r'`. Short input — a slash command
+like `/compact`, or a one-line chat message — submits fine as a single atomic
+`stuff` call with a trailing `\r`.
 
 **A long chat message does NOT submit as one atomic call.** The burst of
 characters trips Claude Code's paste detection, and a `\r` glued onto the end
@@ -137,15 +179,19 @@ Verify by capturing the screen: a genuine shell-mode run echoes the command as
 
 ## Listing the fleet
 
-Run this to list the fleet (namely, screens whose names match
-`claude-remote-*`):
+Two complementary views:
 
-    screen -ls claude-remote-
+- `ListAgents` (tool) shows which sessions are **live and messageable** right
+  now, by RC display name, with `idle`/`busy` state — this is what you need
+  before a `SendMessage`. It also lists stale offline rows; ignore those.
+- `screen -ls claude-remote-` lists the **local screens** (including ones not
+  reachable as peers, e.g. still on the trust dialog). This command exits 1 when
+  no screens match that prefix.
 
-This command exits 1 when no screens match that prefix. There might be other
-screens on the machine which _would_ be shown by a plain `screen -ls` command,
-but you may _only_ interact with screens named `claude-remote-*` (or
-`claude-boss`, which drives the fleet rather than belonging to it).
+There might be other screens on the machine which _would_ be shown by a plain
+`screen -ls` command, but you may _only_ interact with screens named
+`claude-remote-*` (or `claude-boss`, which drives the fleet rather than
+belonging to it).
 
 ## Custom requests
 
