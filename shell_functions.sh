@@ -97,7 +97,7 @@ function rmdir {
 }
 
 function exit {
-    if [ -z "$STY" ]; then
+    if [ -z "${STY:-}" ]; then
         # If not in a 'screen', exit normally
         builtin exit
     else
