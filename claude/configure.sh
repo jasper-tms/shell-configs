@@ -21,6 +21,13 @@ ln -snvf "$SCRIPT_DIR/settings.json" "$CLAUDE_DIR/settings.json"
 # Symlink statusline-command.sh
 ln -snvf "$SCRIPT_DIR/statusline-command.sh" "$CLAUDE_DIR/statusline-command.sh"
 
+# Symlink hook scripts. settings.json references these by their installed path
+# ($HOME/.claude/hooks/...), so they must live under $CLAUDE_DIR to be found.
+mkdir -p "$CLAUDE_DIR/hooks"
+for hook in "$SCRIPT_DIR"/hooks/*.sh; do
+    ln -snvf "$hook" "$CLAUDE_DIR/hooks/$(basename "$hook")"
+done
+
 # Ensure the global CLAUDE.md references this repo's CLAUDE.md as its first line.
 GLOBAL_CLAUDE_MD="$CLAUDE_DIR/CLAUDE.md"
 REF_LINE="@$SCRIPT_DIR/CLAUDE.md"
