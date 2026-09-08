@@ -52,6 +52,10 @@ to know the official spec arises.
 
 ## Execute
 
+Load the sharpen-docs skill before writing the new skill: its guidance on
+crafting the `description` (short, triggers reliably, does NOT list the skill's
+sections) applies to every new skill.
+
 1. By default, just write a SKILL.md file. However, if the skill would benefit
    from example scripts, reference docs, or other supporting assets that should
    NOT be added into context by default every time the skill is used but
