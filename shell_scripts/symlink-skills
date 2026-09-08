@@ -46,7 +46,13 @@ while IFS= read -r -d '' skills_folder; do
         [ -f "${skill_dir}SKILL.md" ] || continue
         skill_name="$(basename "$skill_dir")"
         skill_was_requested "$skill_name" || continue
-        skill_path="$(cd "$skill_dir" && pwd)"
+        # Resolve with `cd -P` so the path is the skill's real directory. A repo
+        # often holds the same skill twice -- the real folder in agent-skills/
+        # and a project-local symlink to it in .claude/skills/ -- and both must
+        # resolve to the one path, so that (a) they are recognised as duplicates
+        # below and (b) the global link we create points at the real folder
+        # rather than through the project-local symlink.
+        skill_path="$(cd -P "$skill_dir" && pwd)"
         link_target="$global_skills_dir/$skill_name"
         # Already linked? Compare where the symlink actually resolves to, not the
         # raw `readlink` text: an existing link may be relative (../../repos/...)
@@ -55,10 +61,19 @@ while IFS= read -r -d '' skills_folder; do
         # canonical paths so relative and absolute links are judged the same.
         if [ -L "$link_target" ]; then
             resolved_link="$(cd -P "$link_target" 2>/dev/null && pwd)"
-            if [ "$resolved_link" = "$(cd -P "$skill_dir" && pwd)" ]; then
+            if [ "$resolved_link" = "$skill_path" ]; then
                 continue  # already linked
             fi
         fi
+        # Already a candidate via another skills folder? Offer it once.
+        already_a_candidate=false
+        for existing_path in "${candidate_paths[@]}"; do
+            if [ "$existing_path" = "$skill_path" ]; then
+                already_a_candidate=true
+                break
+            fi
+        done
+        $already_a_candidate && continue
         candidate_names+=("$skill_name")
         candidate_paths+=("$skill_path")
     done
