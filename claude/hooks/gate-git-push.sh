@@ -3,10 +3,14 @@
 #
 #   - push to a feature branch  ->  allow  (agent pushes on its own, no prompt),
 #                                          even inside a compound command
-#   - push to main/master/prod  ->  deny   (hard block, in any refspec form)
-#   - forced push               ->  ask    (fall through to the normal prompt)
-#   - push target unresolvable  ->  ask    (see below)
+#   - push to main/master/prod  ->  ask when a user is present; deny when headless
+#   - forced push               ->  ask when a user is present; deny when headless
+#   - push target unresolvable  ->  ask when a user is present; deny when headless
 #   - not a git push at all      ->  stay silent, let the normal flow proceed
+#
+# "Headless" means a launcher exported CLAUDE_HEADLESS=1 (e.g. the tidy-repos
+# cron run.sh): there is no user to answer an "ask", so a would-be ask becomes a
+# hard deny rather than a tool call that hangs on an unanswerable prompt.
 #
 # A push with no refspec (bare `git push`, or `git push <remote>`) has an
 # implicit target, so the hook asks git itself what would be pushed: it resolves
@@ -80,7 +84,15 @@ destination_is_protected() {
 implicit_destination_status() {
     local dash_c="$1" dir
     if [ -n "$dash_c" ]; then
-        case "$dash_c" in /*) dir="$dash_c" ;; *) dir="$CWD/$dash_c" ;; esac
+        # Resolve the -C path (the shell expands ~ before git sees it, so the
+        # hook must too): absolute as-is, ~ and ~/ against HOME, else relative
+        # to the command's working directory.
+        case "$dash_c" in
+            /*)    dir="$dash_c" ;;
+            "~")   dir="$HOME" ;;
+            "~/"*) dir="$HOME/${dash_c#"~/"}" ;;
+            *)     dir="$CWD/$dash_c" ;;
+        esac
     elif [ "$HAS_CD" = "1" ]; then
         echo unknown; return
     else
@@ -190,11 +202,26 @@ done <<< "$segments"
 # No git push anywhere -> stay silent, let the normal flow proceed.
 [ "$any_push" = "1" ] || exit 0
 
-# main/master/prod is a hard block, in any refspec form, compound or not.
-[ "$any_protected" = "1" ] && emit deny "Pushing to main/master/prod is not allowed for agents; do it yourself."
+# Headless runs (a launcher exports CLAUDE_HEADLESS=1, e.g. the tidy-repos cron
+# run.sh) have no user to answer an "ask", so downgrade every would-be ask to a
+# hard "deny". When a user is present, keep the "ask" so a deliberate push to
+# main just prompts.
+ask_or_deny() {  # $1 = ask reason (shown to the user), $2 = deny reason (shown to the agent)
+    if [ "${CLAUDE_HEADLESS:-}" = "1" ]; then emit deny "$2"; else emit ask "$1"; fi
+}
 
-# Forced or unresolvable-target pushes are not auto-allowed; defer to the prompt.
-[ "$any_forced" = "1" ] && emit ask "Force push; confirm before overwriting history."
-[ "$any_unresolved" = "1" ] && emit ask "Could not determine the push target branch; confirm it is not main/master/prod."
+# Push to main/master/prod, in any refspec form, compound or not.
+[ "$any_protected" = "1" ] && ask_or_deny \
+    "Push to a protected branch (main/master/prod); confirm this is intended." \
+    "Pushing to main/master/prod is blocked in headless runs; skip it, and if it needs pushing, ask the user to do it."
+
+# Forced push (history overwrite) and unresolvable-target pushes: not
+# auto-allowed either -- confirm with the user, or block when headless.
+[ "$any_forced" = "1" ] && ask_or_deny \
+    "Force push; confirm before overwriting history." \
+    "Force push (history overwrite) is blocked in headless runs; skip it, and ask the user if it is needed."
+[ "$any_unresolved" = "1" ] && ask_or_deny \
+    "Could not determine the push target branch; confirm it is not main/master/prod." \
+    "Could not determine the push target branch; blocked in headless runs to avoid an unconfirmed push to main/master/prod."
 
 emit allow "Push to a feature branch."
