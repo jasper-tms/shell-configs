@@ -125,10 +125,60 @@ Conventions inside a category thread's comments:
 - The overall verdict is often **bolded** inline, sometimes appended to the
   heading after an en dash.
 - Images are welcome, embedded as raw `<img src=... width=...>` HTML tags so
-  the width can be constrained.
+  the width can be constrained. See "Product images" below for where to source
+  them.
 
 If nothing in the repo covers the thing being reviewed, ask Jasper whether to
 open a new category thread or a single-subject issue before creating one.
+
+### Product images
+
+For a packaged grocery product, **prefer the supplier's own image URL** over
+uploading a photo to GitHub, embedded at `width=360` to match the house style:
+
+```html
+<img width=360 src=https://www.coop.ch/img/produkte/1474_1474/RGB/<article-number>_001.jpg>
+```
+
+The rules that make this reliable:
+
+- **Coop has a derivable pattern.** The article number is the `/p/<number>`
+  segment at the end of a Coop product URL, and the image lives at
+  `https://www.coop.ch/img/produkte/1474_1474/RGB/<article-number>_001.jpg`.
+  `1474_1474` is a fixed pre-rendered size (not a resize knob — other sizes
+  like `500_500` 404); set the displayed size with the `width=` attribute.
+- **Always `curl` the URL and confirm a `200` before embedding.** A missing
+  image returns a real `404` (with a small error-page body), so a `200` is a
+  genuine confirmation. Some products lack `_001` or carry extra images
+  (`_002`, …), so don't assume — check.
+  ```bash
+  curl -sL -o /dev/null -w "%{http_code} %{size_download}\n" "<image-url>"
+  ```
+- When in doubt about whether the image matches the product, download it and
+  look at it before posting — it's easy to attach the wrong SKU's photo to
+  Jasper's review.
+- **Migros has no derivable pattern** — its product pages are JS-rendered (no
+  `og:image` in the raw HTML) and the `image.migros.ch` id is a per-product
+  hash, not the product number. So load the product page in a real browser
+  (claude-in-chrome on this Pi) and read `<meta property="og:image">`, which
+  is the packaging shot at `image.migros.ch/d/mo-boxed/v-w-1000-h-1000/...`.
+  Products sold through leShop come back as a `cloudinary.com` URL instead;
+  both work. A stale/delisted product number redirects to a `/404` page whose
+  `og:image` is just the Migros favicon — that means the product is gone, so
+  don't embed it.
+- **Fall back to a GitHub user-upload** for products with no reliable supplier
+  image, for non-Coop/Migros items, or when you want a photo of the actual
+  item rather than stock packaging (a restaurant dish, a cut-open cheese, the
+  infamous rock-hard blueberries).
+- **Single-product comment:** one image at `width=360`, placed after the
+  review text.
+- **Multi-product comment** (a list of items in one comment — tier lists, "a
+  bunch more cheeses", the tortilla-chips thread): put a smaller `width=240`
+  image inline right after each item's text, so photo-to-item association
+  stays unambiguous and the comment doesn't balloon. Add an image only for
+  items you can identify with **high confidence** (curl/eyeball-verified) —
+  skip vague one-word entries rather than guess at a SKU, and it's fine to
+  skip pure-text tier lists where a stock photo adds little.
 
 ## How the `records` repo is organized
 
