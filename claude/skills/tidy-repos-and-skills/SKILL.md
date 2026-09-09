@@ -16,15 +16,20 @@ index in sync with the actual `SKILL.md` files on disk:
 The same steps are useful interactively whenever an index looks stale, so the
 skill is loadable by any agent, not only the cron job.
 
-## This task commits and pushes on its own
+## This task commits on its own; the wrapper pushes main
 
 This is the deliberate exception to the normal `finishing-tasks-in-repos`
 convention (which writes a `commit_*.sh` script for Jasper to run). The nightly
-task is autonomous and self-authorized: it commits its index fixes and
-**pushes** them directly. Still follow the message conventions (under 73
-characters, start with a verb). Never force-push. If a repo cannot be pushed
-safely (no upstream, or the push is rejected), do not fight it - record it in
-the report and move on.
+task is autonomous and self-authorized to **commit** its index fixes directly.
+Still follow the message conventions (under 73 characters, start with a verb).
+
+Pushing main is **not** your job. A global `gate-git-push.sh` PreToolUse hook
+denies an agent `git push` to `main`/`master`/`prod` in this headless run, so
+do not attempt one. After you exit, the `run.sh` wrapper pushes the protected
+branch for the repos this task maintains (its `git push` runs in the wrapper
+shell, not an agent tool call, so the hook never gates it). Just commit and
+leave main to the wrapper. (You *may* still push a feature branch yourself if a
+repo happens to be on one - the hook allows that.)
 
 ## The six indexed folders
 
@@ -33,7 +38,7 @@ Exactly these version-controlled agent-skills folders carry an `INDEX.md`:
 - `~/repos/jasper-tms/shell-configs/claude/skills`
 - `~/repos/jasper-tms/raspberry-pi/agent-skills`
 - `~/repos/jasper-tms/swiss-table-tennis-chat/agent-skills`
-- `~/repos/scoreTec/reaction-time-web-app/agent-skills`
+- `~/repos/scoreTec/reaction-test/agent-skills`
 - `~/repos/jasper-tms/exact-video-engine.js/agent-skills`
 - `~/repos/movim/agent-skills`
 
@@ -225,12 +230,16 @@ reconciled against disk). Add any problems it prints - a missing mandatory
 report's **Needs attention** section. These need a human to fix the offending
 `SKILL.md`; the nightly task does not rewrite skill frontmatter itself.
 
-### 5. Commit and push per repo
+### 5. Commit per repo (the wrapper pushes main)
 
 For each repo touched in steps 1-3, commit the changed files with a verb-first
 message under 73 characters (e.g. `Refresh skill INDEX.md files`,
-`Sync _SKILL_LISTING.md with skills on disk`) and push to its upstream. Never
-force-push. A repo with no upstream or a rejected push: skip and report it.
+`Sync _SKILL_LISTING.md with skills on disk`). Do **not** `git push` a
+main/master/prod branch - the hook blocks it and the wrapper pushes it for you
+after you exit (see "This task commits on its own; the wrapper pushes main").
+The wrapper records what it pushed, or any rejected push, into the report
+itself, so you do not need to. If a repo happens to be on a feature branch, you
+may push that yourself; never force-push.
 
 ### 6. Write the report file
 
@@ -238,18 +247,20 @@ Write your final summary to the path in the `TIDY_REPORT_FILE` environment
 variable. The **first line** is the machine-readable status the wrapper keys
 on:
 
-- `STATUS: quiet` - everything pulled cleanly, no index drift, nothing pushed,
-  nothing needs attention. The wrapper sends no email.
+- `STATUS: quiet` - everything pulled cleanly, no index drift, nothing
+  committed, nothing needs attention. The wrapper sends no email.
 - `STATUS: report` - anything changed or anything needs attention. The wrapper
   emails the rest of the file.
 
 After the status line, write a short human summary: repos rebased, INDEX.md /
-_SKILL_LISTING.md changes committed and pushed (name the repos), and a clearly
-separated **Needs attention** section for rebase conflicts, credential
-failures, rejected pushes, and any asserted-state drift you noticed (see "Watch
-for asserted-state drift"). If you could not finish, still write the file
-with `STATUS: report` and explain how far you got - a missing report file makes
-the wrapper send a generic failure email.
+_SKILL_LISTING.md changes committed (name the repos), and a clearly separated
+**Needs attention** section for rebase conflicts, credential failures, and any
+asserted-state drift you noticed (see "Watch for asserted-state drift"). You do
+not report on pushing main - the wrapper appends its own push outcome (including
+any rejected push, which flips a quiet report to `STATUS: report`) after you
+exit. If you could not finish, still write the file with `STATUS: report` and
+explain how far you got - a missing report file makes the wrapper send a
+generic failure email.
 
 ## Testing without spamming Jasper
 
