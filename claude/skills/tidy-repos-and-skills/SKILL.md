@@ -31,11 +31,12 @@ shell, not an agent tool call, so the hook never gates it). Just commit and
 leave main to the wrapper. (You *may* still push a feature branch yourself if a
 repo happens to be on one - the hook allows that.)
 
-## The six indexed folders
+## The seven indexed folders
 
 Exactly these version-controlled agent-skills folders carry an `INDEX.md`:
 
 - `~/repos/jasper-tms/shell-configs/claude/skills`
+- `~/repos/jasper-tms/mac-config/agent-skills`
 - `~/repos/jasper-tms/raspberry-pi/agent-skills`
 - `~/repos/jasper-tms/swiss-table-tennis-chat/agent-skills`
 - `~/repos/scoreTec/reaction-test/agent-skills`
@@ -71,71 +72,24 @@ Each skill below can be found at `raspberry-pi/agent-skills/<skill-name>/SKILL.m
 ## Validating skill frontmatter
 
 The Agent Skills spec makes both `name:` and `description:` mandatory, and
-requires each skill's `name:` to match its parent directory name. This inline
-check enforces all three across every skill the global listing knows about. It
-reads the folder set straight from
+requires each skill's `name:` to match its parent directory name. This skill
+ships `validate_skill_frontmatter.py`, which enforces all three across every
+skill the global listing knows about. It reads the folder set straight from
 `~/repos/jasper-tms/raspberry-pi/agent-skills/_SKILL_LISTING.md` (no hardcoded
 folder list to drift out of date), so a skill added anywhere the listing covers
 gets checked automatically, and it reuses `build_index.py`'s frontmatter parser.
-Run it and route any output into the report's **Needs attention**:
+Like `build_index.py`, it sits next to this `SKILL.md` and is intentionally
+**not** symlinked into `~/.claude/skills`, so refer to it by its real path. Run
+it and route any output into the report's **Needs attention**:
 
 ```bash
-python3 - <<'PY'
-import re
-import sys
-from pathlib import Path
-
-tidy_dir = Path(
-    "~/repos/jasper-tms/shell-configs/claude/skills/tidy-repos-and-skills"
-).expanduser()
-sys.path.insert(0, str(tidy_dir))
-from build_index import read_frontmatter  # reuse the same frontmatter parser
-
-listing = Path(
-    "~/repos/jasper-tms/raspberry-pi/agent-skills/_SKILL_LISTING.md"
-).expanduser()
-
-# Derive every (folder, skill-name) pair from the listing: a header naming an
-# absolute path sets the folder (and the base for relative sub-folder headers
-# like the swiss repo's `### agent-skills/`); bullets beneath it are its skills.
-pairs, base, folder = [], None, None
-for line in listing.read_text(encoding="utf-8").splitlines():
-    header = re.match(r"^#+\s+(.*)$", line)
-    if header:
-        text = header.group(1).strip().strip("`").rstrip("/")
-        if text.startswith(("~", "/")):
-            base = folder = Path(text).expanduser()
-        elif re.fullmatch(r"[\w.-]+", text) and base is not None:
-            folder = base / text
-        else:
-            folder = None  # prose header, not a folder
-        continue
-    bullet = re.match(r"^-\s+(\S+)", line)
-    if bullet and folder is not None:
-        pairs.append((folder, bullet.group(1).strip("`")))
-
-problems = []
-for folder, name in pairs:
-    if not folder.is_dir():
-        continue  # repo not cloned on this machine; nothing to check here
-    skill_md = folder / name / "SKILL.md"
-    if not skill_md.is_file():
-        problems.append(f"{folder / name}: listed but no SKILL.md on disk")
-        continue
-    fields = read_frontmatter(skill_md)
-    fm_name = fields.get("name", "").strip()
-    description = fields.get("description", "").strip()
-    if not fm_name:
-        problems.append(f"{skill_md}: missing mandatory name:")
-    elif fm_name != name:
-        problems.append(f"{skill_md}: name '{fm_name}' != folder '{name}'")
-    if not description:
-        problems.append(f"{skill_md}: missing mandatory description:")
-
-print("\n".join(problems) or "all listed skills valid")
-sys.exit(1 if problems else 0)
-PY
+validate=~/repos/jasper-tms/shell-configs/claude/skills/tidy-repos-and-skills/validate_skill_frontmatter.py
+python3 "$validate"
 ```
+
+It checks the raspberry-pi `_SKILL_LISTING.md` by default; pass a different
+listing path as an argument to check another. It prints one problem per line (or
+`all listed skills valid`) and exits nonzero when any listed skill is invalid.
 
 Absent folders (repos not cloned on this machine) are skipped. A `listed but no
 SKILL.md on disk` line means the listing is stale - normally the reconcile step
@@ -200,9 +154,9 @@ done
 Record, for the report: repos that were rebased, repos that hit a rebase
 conflict (aborted, untouched), and any credential failures from `pullrepos`.
 
-### 2. Rebuild the six INDEX.md files
+### 2. Rebuild the seven INDEX.md files
 
-Run `build_index.py` on each of the six folders (see above). Then, per repo,
+Run `build_index.py` on each of the seven folders (see above). Then, per repo,
 `git diff --stat` the `INDEX.md` to see what actually changed. A changed
 `INDEX.md` means a skill was added, removed, or had its description edited.
 
