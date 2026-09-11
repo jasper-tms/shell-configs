@@ -34,14 +34,34 @@ unrelated changes don't get staged accidentally: use `git apply --cached`
 command(s) in the commit script instead of `git add` when necessary to stage
 your changes to any mixed files.
 
+## Look for and reference related issues
+
+If the user has not indicated which issue the work relates to, list the open
+issues with their numbers and titles:
+
+```bash
+gh issue list --state open --limit 100 --json number,title -q '.[] | "#\(.number) \(.title)"'
+```
+
+If there's an obvious match, consider that the issue to reference. If there's
+ambiguity, read the issue(s) post and/or comments to investigate and choose,
+falling back to asking the user in case the uncertainty remains after that. You
+will reference the chosen issue(s) in the next section. If `gh` errors (e.g. no
+GitHub remote), or returns no open issues that seem relevant based on their
+titles, consider there to be no related issue and silently move on.
+
 ## Commit messages
 
-The commit message must be under 73 characters and start with a verb. Only add
-an extended (multi-line) commit message concisely describing key changes for
-big or complex commits, around a third of the time. Pass extended messages via
-a stdin heredoc like `git commit -F - <<'EOF' ... EOF` (NOT
-`git commit -m "$(cat <<'EOF' ... EOF)"`, which fails to parse correctly in
-some bash versions).
+The commit message must start with a verb and be 72 characters or less.
+Reference any related issue(s) within those 72 characters by ending with
+"Fix #9" when the commit constitutes an essentially complete fix such that the
+issue can be closed, and/or "See #42[, #64]" when related to an issue but the
+commit doesn't fully resolve it.
+For complex commits, add an extended (multi-line) commit message briefly
+mentioning key decisions and changes made, without much in the way of
+implementation details. Pass extended messages via a stdin heredoc like
+`git commit -F - <<'EOF' ... EOF` (NOT `git commit -m "$(cat <<'EOF' ... EOF)"`
+which fails to parse correctly in some bash versions).
 
 ## When asked to run the script yourself
 If the user explicitly asks you to run a commit script yourself, do so, then
