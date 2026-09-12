@@ -1,0 +1,417 @@
+#!/usr/bin/env python3
+"""Print the full thread (body + all comments) for one or more GitHub issues
+or pull requests -- as readable Markdown, or as JSON -- in a single API call.
+
+Designed to be run by an agent (or a human) that wants to read several issues'
+complete discussions at once without fumbling with multiple `gh` commands.
+
+Usage:
+    readissue <owner/repo> <numbers> [--json]
+    readissue <numbers> [--json]          # inside a GitHub repo checkout
+
+<numbers> is one or more issue/PR numbers separated by commas and/or spaces,
+and may include inclusive ranges. All of these are equivalent ways to ask for
+issues 1, 6, 7 and 8:
+    readissue jasper-tms/records 1,6,7,8
+    readissue jasper-tms/records 1 6 7 8
+    readissue jasper-tms/records 1,6-8
+
+Called with no issue numbers (just a repo, or nothing inside a repo checkout),
+it instead lists the repo's open issues -- number and title, one per line --
+above the usage text, as a menu of what's available to read.
+
+Every requested number is fetched in ONE GraphQL request regardless of how many
+there are, so reading 40 issues costs the same round trip as reading one.
+
+With --json, prints a JSON array of cleaned issue objects using the SAME schema
+as backup_github_issues' `_clean_and_combine.py` (number, title, html_url,
+state, user, labels, created_at, updated_at, closed_at, body, is_pull_request,
+comments[]), so the two tools' output is interchangeable.
+
+Requires the GitHub CLI (`gh`) to be installed and authenticated; it provides
+the auth for the underlying API call.
+"""
+
+import json
+import re
+import subprocess
+import sys
+
+# Number of comments fetched per issue. GitHub's GraphQL API caps a single page
+# at 100; issues with more than this are reported as truncated rather than
+# paginated (vanishingly rare for the repos this is used on).
+COMMENTS_PER_ISSUE = 100
+
+USAGE = (
+    "Usage: readissue <owner/repo> <numbers> [--json]\n"
+    "       readissue <numbers> [--json]        (inside a GitHub repo checkout)\n"
+    "\n"
+    "  <numbers>: issue/PR numbers separated by commas and/or spaces,\n"
+    "             ranges allowed, e.g. '1,6,8' or '1 6 8' or '1-3,8'.\n"
+    "  --json:    emit a JSON array instead of Markdown."
+)
+
+
+def fail(message):
+    """Print an error to stderr and exit non-zero."""
+    print(f"readissue: {message}", file=sys.stderr)
+    sys.exit(1)
+
+
+_GH_MISSING = (
+    "the GitHub CLI (gh) was not found on PATH. Install it from "
+    "https://cli.github.com/ and run 'gh auth login'."
+)
+
+
+def run_gh(arguments):
+    """Run a `gh` command, returning its stdout. Exits with a clear message if
+    gh is missing, unauthenticated, or the command fails."""
+    try:
+        result = subprocess.run(
+            ["gh", *arguments], capture_output=True, text=True
+        )
+    except FileNotFoundError:
+        fail(_GH_MISSING)
+    if result.returncode != 0:
+        message = (result.stderr or result.stdout or "").strip()
+        fail(f"gh command failed:\n{message}")
+    return result.stdout
+
+
+def run_graphql(query):
+    """Run a GraphQL query and return its parsed JSON payload. A number that
+    doesn't exist comes back as a null node plus a harmless NOT_FOUND error,
+    and gh exits non-zero whenever the response carries ANY error -- but the
+    full JSON (data and errors together) is still on stdout, so parse that
+    rather than trusting the exit code. Only errors other than NOT_FOUND (a bad
+    repo, auth trouble, a malformed query) are treated as fatal."""
+    try:
+        result = subprocess.run(
+            ["gh", "api", "graphql", "-f", f"query={query}"],
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        fail(_GH_MISSING)
+    stdout = result.stdout.strip()
+    if not stdout:
+        fail(f"gh command failed:\n{(result.stderr or '').strip()}")
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError:
+        fail(f"could not parse gh response:\n{stdout}")
+    fatal = [
+        error
+        for error in payload.get("errors", [])
+        if error.get("type") != "NOT_FOUND"
+    ]
+    if fatal:
+        messages = "; ".join(error.get("message", "?") for error in fatal)
+        fail(f"GraphQL error(s): {messages}")
+    return payload
+
+
+def looks_like_repo(token):
+    """A repo argument looks like 'owner/name'; a numbers argument never does."""
+    return bool(re.fullmatch(r"[^/\s]+/[^/\s]+", token))
+
+
+def parse_numbers(tokens):
+    """Turn the positional argv tokens into an ordered, de-duplicated list of
+    issue numbers. Tokens may be comma- and/or space-separated and may contain
+    inclusive 'A-B' ranges."""
+    numbers = []
+    seen = set()
+    for token in tokens:
+        for piece in token.split(","):
+            piece = piece.strip()
+            if not piece:
+                continue
+            range_match = re.fullmatch(r"(\d+)-(\d+)", piece)
+            if range_match:
+                start, end = int(range_match.group(1)), int(range_match.group(2))
+                if start > end:
+                    start, end = end, start
+                candidates = range(start, end + 1)
+            elif piece.isdigit():
+                candidates = [int(piece)]
+            else:
+                fail(f"could not parse issue number(s) from {piece!r}.\n\n{USAGE}")
+            for number in candidates:
+                if number not in seen:
+                    seen.add(number)
+                    numbers.append(number)
+    return numbers
+
+
+def detect_current_repo():
+    """Return 'owner/name' for the repo of the current directory, or None if
+    the current directory is not a GitHub repo (gh exits non-zero there)."""
+    try:
+        result = subprocess.run(
+            ["gh", "repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"],
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        fail(_GH_MISSING)
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip() or None
+
+
+def list_open_issues(owner, name):
+    """Return a list of (number, title) for the repo's open issues (not PRs),
+    sorted by number, plus the total open count (which may exceed the number
+    returned if the repo has more than 100 open issues)."""
+    query = (
+        "query{repository(owner:"
+        + json.dumps(owner)
+        + ",name:"
+        + json.dumps(name)
+        + "){issues(first:100,states:OPEN){totalCount nodes{number title}}}}"
+    )
+    payload = run_graphql(query)
+    repository = (payload.get("data") or {}).get("repository")
+    if repository is None:
+        fail(f"repository {owner}/{name!r} not found or not accessible.")
+    issues = repository["issues"]
+    nodes = sorted(issues["nodes"], key=lambda node: node["number"])
+    return [(node["number"], node["title"]) for node in nodes], issues["totalCount"]
+
+
+# GraphQL selection of the fields wanted for both issues and pull requests.
+# Both types expose these same fields. The names are chosen to map cleanly onto
+# the backup_github_issues cleaned schema in clean_node() below.
+_THREAD_FIELDS = (
+    "number title state url createdAt updatedAt closedAt "
+    "author{login} "
+    "labels(first:50){nodes{name}} "
+    "body "
+    f"comments(first:{COMMENTS_PER_ISSUE}){{"
+    "totalCount nodes{author{login} url createdAt updatedAt body}"
+    "}"
+)
+
+
+def build_query(owner, name, numbers):
+    """Build one GraphQL query that fetches every requested number via
+    issueOrPullRequest (GitHub numbers issues and PRs in a shared sequence, so
+    a given number resolves to whichever it is). __typename tells the two
+    apart; a number that exists as neither resolves to null."""
+    selections = []
+    for number in numbers:
+        selections.append(
+            f"n{number}: issueOrPullRequest(number:{number})"
+            f"{{__typename "
+            f"... on Issue{{{_THREAD_FIELDS}}} "
+            f"... on PullRequest{{{_THREAD_FIELDS}}}}}"
+        )
+    return (
+        "query{repository(owner:"
+        + json.dumps(owner)
+        + ",name:"
+        + json.dumps(name)
+        + "){"
+        + " ".join(selections)
+        + "}}"
+    )
+
+
+def _login(holder):
+    """Pull a `.author.login` out of an issue/comment node, tolerating a null
+    author (e.g. a deleted account)."""
+    return (holder.get("author") or {}).get("login")
+
+
+def clean_node(node):
+    """Normalize a GraphQL issueOrPullRequest node into the cleaned schema used
+    by backup_github_issues' `_clean_and_combine.py`, so Markdown rendering and
+    --json output (and, later, the backup itself) can share one shape."""
+    return {
+        "number": node.get("number"),
+        "title": node.get("title"),
+        "html_url": node.get("url"),
+        # GraphQL states are upper-case (OPEN/CLOSED/MERGED); the REST-based
+        # backup uses lower-case, so match that.
+        "state": (node.get("state") or "").lower() or None,
+        "user": _login(node),
+        "labels": [
+            label.get("name")
+            for label in (node.get("labels") or {}).get("nodes", [])
+        ],
+        "created_at": node.get("createdAt"),
+        "updated_at": node.get("updatedAt"),
+        "closed_at": node.get("closedAt"),
+        "body": node.get("body"),
+        "is_pull_request": node.get("__typename") == "PullRequest",
+        "comments": [
+            {
+                "user": _login(comment),
+                "html_url": comment.get("url"),
+                "created_at": comment.get("createdAt"),
+                "updated_at": comment.get("updatedAt"),
+                "body": comment.get("body"),
+            }
+            for comment in (node.get("comments") or {}).get("nodes", [])
+        ],
+    }
+
+
+def format_markdown(issue, total_comments):
+    """Render one cleaned issue dict as a Markdown block. `total_comments` is
+    the true comment count on GitHub, which can exceed the number fetched."""
+    kind = "Pull Request" if issue["is_pull_request"] else "Issue"
+    state = (issue["state"] or "").upper()
+    state_suffix = f" [{state}]" if state else ""
+    title = issue["title"] or "(no title)"
+
+    lines = [f"# {kind} #{issue['number']}: {title}{state_suffix}"]
+
+    meta = f"by @{issue['user'] or '(unknown)'} · opened {issue['created_at'] or '?'}"
+    if issue["labels"]:
+        meta += " · labels: " + ", ".join(issue["labels"])
+    lines.append(meta)
+    if issue["html_url"]:
+        lines.append(issue["html_url"])
+    lines.append("")
+
+    body = (issue["body"] or "").strip()
+    lines.append(body if body else "_(no description)_")
+    lines.append("")
+
+    fetched = issue["comments"]
+    if total_comments == 0:
+        lines.append("_(no comments)_")
+    else:
+        lines.append(f"## Comments ({total_comments})")
+        lines.append("")
+        for index, comment in enumerate(fetched, start=1):
+            author = comment["user"] or "(unknown)"
+            lines.append(
+                f"### Comment {index} — @{author} · {comment['created_at'] or '?'}"
+            )
+            comment_body = (comment["body"] or "").strip()
+            lines.append(comment_body if comment_body else "_(empty comment)_")
+            lines.append("")
+        if total_comments > len(fetched):
+            lines.append(
+                f"_… {total_comments - len(fetched)} more comment(s) not shown "
+                f"(only the first {COMMENTS_PER_ISSUE} are fetched)._"
+            )
+            lines.append("")
+    return "\n".join(lines).rstrip()
+
+
+def parse_arguments(argv):
+    """Split argv into (repo_or_None, number_tokens, output_json)."""
+    output_json = False
+    positional = []
+    for arg in argv:
+        if arg in ("-h", "--help"):
+            print(USAGE)
+            sys.exit(0)
+        if arg in ("--json", "-j"):
+            output_json = True
+        elif arg in ("--markdown", "--md"):
+            output_json = False
+        elif arg.startswith("-") and arg != "-":
+            fail(f"unknown option {arg!r}.\n\n{USAGE}")
+        else:
+            positional.append(arg)
+
+    if positional and looks_like_repo(positional[0]):
+        return positional[0], positional[1:], output_json
+    return None, positional, output_json
+
+
+def show_open_issues_and_usage(repo):
+    """For a bare invocation (no issue numbers): list the repo's open issues
+    one per line, then the usage text, and exit."""
+    if repo is None or "/" not in repo:
+        print(USAGE)
+        sys.exit(1)
+    owner, name = repo.split("/", 1)
+    issues, total = list_open_issues(owner, name)
+    print(f"Open issues in {repo}:")
+    if issues:
+        for number, title in issues:
+            print(f"  #{number} {title}")
+        if total > len(issues):
+            print(f"  … and {total - len(issues)} more")
+    else:
+        print("  (none)")
+    print()
+    print(USAGE)
+    sys.exit(0)
+
+
+def main():
+    repo, number_tokens, output_json = parse_arguments(sys.argv[1:])
+    if repo is None:
+        repo = detect_current_repo()
+
+    numbers = parse_numbers(number_tokens)
+    if not numbers:
+        show_open_issues_and_usage(repo)
+
+    if repo is None:
+        fail(
+            "no repo given and the current directory is not a GitHub repo.\n\n"
+            + USAGE
+        )
+    if "/" not in repo:
+        fail(f"repo {repo!r} is not in 'owner/name' form.\n\n{USAGE}")
+    owner, name = repo.split("/", 1)
+
+    payload = run_graphql(build_query(owner, name, numbers))
+    repository = (payload.get("data") or {}).get("repository")
+    if repository is None:
+        fail(f"repository {repo!r} not found or not accessible.")
+
+    cleaned_issues = []
+    total_comment_counts = []
+    missing = []
+    for number in numbers:
+        node = repository.get(f"n{number}")
+        if node is None:
+            missing.append(number)
+            continue
+        cleaned_issues.append(clean_node(node))
+        total_comment_counts.append(
+            (node.get("comments") or {}).get("totalCount", 0)
+        )
+
+    if output_json:
+        print(json.dumps(cleaned_issues, indent=2))
+    else:
+        blocks = [
+            format_markdown(issue, total)
+            for issue, total in zip(cleaned_issues, total_comment_counts)
+        ]
+        if blocks:
+            print(("\n\n" + "-" * 72 + "\n\n").join(blocks))
+
+    truncated = [
+        issue["number"]
+        for issue, total in zip(cleaned_issues, total_comment_counts)
+        if total > len(issue["comments"])
+    ]
+    if truncated:
+        joined = ", ".join(f"#{number}" for number in truncated)
+        print(
+            f"readissue: note: {joined} have more than {COMMENTS_PER_ISSUE} "
+            f"comments; only the first {COMMENTS_PER_ISSUE} were fetched.",
+            file=sys.stderr,
+        )
+    if missing:
+        joined = ", ".join(f"#{number}" for number in missing)
+        print(
+            f"readissue: no issue or pull request found for {joined} in {repo}.",
+            file=sys.stderr,
+        )
+
+
+if __name__ == "__main__":
+    main()
