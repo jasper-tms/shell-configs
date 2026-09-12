@@ -206,15 +206,64 @@ on:
 - `STATUS: report` - anything changed or anything needs attention. The wrapper
   emails the rest of the file.
 
-After the status line, write a short human summary: repos rebased, INDEX.md /
-_SKILL_LISTING.md changes committed (name the repos), and a clearly separated
-**Needs attention** section for rebase conflicts, credential failures, and any
-asserted-state drift you noticed (see "Watch for asserted-state drift"). You do
-not report on pushing main - the wrapper appends its own push outcome (including
-any rejected push, which flips a quiet report to `STATUS: report`) after you
-exit. If you could not finish, still write the file with `STATUS: report` and
-explain how far you got - a missing report file makes the wrapper send a
-generic failure email.
+**Keep the report terse - it is read at a glance, and a routine success must
+not cost more than one line.** After the status line, write:
+
+1. A header line: `tidy-repos-and-skills - <YYYY-MM-DD>`.
+
+2. Exactly **one line per step below**, each prefixed `✓` (fine) or `⚠` (needs
+   attention). A `✓` line is at most one line long: state the outcome, naming
+   what changed in parentheses only if something did. Do **not** narrate *how*
+   you did it, which skills you followed, or which sub-steps had nothing to
+   report - a clean step is just `✓ <step>: OK`.
+
+   Use these descriptive step labels verbatim (keep the label; only the part
+   after the colon varies):
+
+   - `✓ Pull all repos: OK` - or `✓ Pull all repos: OK (rebased: <repos>)`.
+   - `✓ Regenerate agent-skills INDEX.md: no change` - or `... : updated <repos>`.
+   - `✓ Reconcile global _SKILL_LISTING.md: no change` - or `... : <what changed>`.
+   - `✓ Validate skill frontmatter: valid` - or `⚠ Validate skill frontmatter: <problems>`.
+   - `✓ Check crontab vs source: in sync` - or `⚠ Check crontab vs source: <diff summary>`.
+
+   (The wrapper appends its own push-outcome line after you exit - do not write
+   one, and do not report on pushing main.)
+
+3. A `⚠ Needs attention (<n>):` block **only if** something needs attention: a
+   rebase conflict, a credential failure, a frontmatter problem, a crontab diff,
+   or asserted-state drift you noticed (see "Watch for asserted-state drift").
+   This is the one place to expand - give each item the file/command and the
+   specific contradiction, enough to act on without re-investigating. Every step
+   line you marked `⚠` above must appear here in full. Omit the whole block when
+   nothing needs attention.
+
+Anything needing attention makes the overall status `STATUS: report` (the
+wrapper also flips it to `report` if its push was rejected). If you could not
+finish, still write the file with `STATUS: report`, whatever `✓`/`⚠` step lines
+you completed, and a `⚠ Needs attention` note on how far you got - a missing
+report file makes the wrapper send a generic failure email.
+
+Example of a run with one real issue (this is the whole email):
+
+```
+STATUS: report
+tidy-repos-and-skills - 2026-09-10
+
+✓ Pull all repos: OK (rebased: SportID)
+✓ Regenerate agent-skills INDEX.md: updated reaction-test
+✓ Reconcile global _SKILL_LISTING.md: no change
+✓ Validate skill frontmatter: valid
+✓ Check crontab vs source: in sync
+
+⚠ Needs attention (1):
+- uv-sources clean filter not configured on this Pi; checkout/rebase leaves
+  [tool.uv.sources] staged, and a commit could leak local absolute paths.
+  Fix: using-uv INSTALL.md steps 4-5.
+```
+
+A fully clean run is `STATUS: quiet` and sends no email at all - so every email
+that does arrive has at most a handful of `✓` lines plus, when it matters, the
+`⚠ Needs attention` block.
 
 ## Testing without spamming Jasper
 
