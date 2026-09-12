@@ -6,8 +6,15 @@ Designed to be run by an agent (or a human) that wants to read several issues'
 complete discussions at once without fumbling with multiple `gh` commands.
 
 Usage:
-    readissue <owner/repo> <numbers> [--json]
+    readissue <repo> <numbers> [--json]
     readissue <numbers> [--json]          # inside a GitHub repo checkout
+    readissue <issue-or-pr-url> [--json]  # repo and number both from the URL
+
+<repo> may be given as 'owner/name', as a full GitHub URL, e.g.
+'https://github.com/jasper-tms/records', or as an SSH remote, e.g.
+'git@github.com:jasper-tms/records.git'. A full issue or pull-request URL like
+'https://github.com/jasper-tms/records/issues/6' supplies both the repo and the
+number, so pasting one URL is enough to read that one thread.
 
 <numbers> is one or more issue/PR numbers separated by commas and/or spaces,
 and may include inclusive ranges. All of these are equivalent ways to ask for
@@ -15,6 +22,7 @@ issues 1, 6, 7 and 8:
     readissue jasper-tms/records 1,6,7,8
     readissue jasper-tms/records 1 6 7 8
     readissue jasper-tms/records 1,6-8
+    readissue https://github.com/jasper-tms/records 1,6-8
 
 Called with no issue numbers (just a repo, or nothing inside a repo checkout),
 it instead lists the repo's open issues -- number and title, one per line --
@@ -43,9 +51,13 @@ import sys
 COMMENTS_PER_ISSUE = 100
 
 USAGE = (
-    "Usage: readissue <owner/repo> <numbers> [--json]\n"
-    "       readissue <numbers> [--json]        (inside a GitHub repo checkout)\n"
+    "Usage: readissue <repo> <numbers> [--json]\n"
+    "       readissue <numbers> [--json]          (inside a GitHub repo checkout)\n"
+    "       readissue <issue-or-pr-url> [--json]  (repo and number from the URL)\n"
     "\n"
+    "  <repo>:    'owner/name', a GitHub URL like\n"
+    "             'https://github.com/jasper-tms/records', or an SSH remote\n"
+    "             like 'git@github.com:jasper-tms/records.git'.\n"
     "  <numbers>: issue/PR numbers separated by commas and/or spaces,\n"
     "             ranges allowed, e.g. '1,6,8' or '1 6 8' or '1-3,8'.\n"
     "  --json:    emit a JSON array instead of Markdown."
@@ -115,6 +127,34 @@ def run_graphql(query):
 def looks_like_repo(token):
     """A repo argument looks like 'owner/name'; a numbers argument never does."""
     return bool(re.fullmatch(r"[^/\s]+/[^/\s]+", token))
+
+
+# A GitHub URL in any of its usual spellings: the https web URL, and the SSH
+# remote forms 'git@github.com:owner/name.git' (scp-like) and
+# 'ssh://git@github.com/owner/name'. The pieces: an optional scheme, an optional
+# 'git@' user and 'www.', the host, then either ':' (scp-like) or '/' before
+# 'owner/name' (with an optional '.git'). A web URL may carry a trailing
+# '/issues/<n>' or '/pull/<n>', and a trailing slash and any '?query' or
+# '#fragment' (e.g. '#issuecomment-...') are tolerated and ignored.
+_GITHUB_URL = re.compile(
+    r"(?:(?:https?|ssh)://)?(?:git@)?(?:www\.)?github\.com[:/]"
+    r"(?P<owner>[^/\s]+)/(?P<name>[^/\s]+?)(?:\.git)?"
+    r"(?:/(?:issues|pull)/(?P<number>\d+))?"
+    r"/?(?:[?#].*)?"
+)
+
+
+def parse_repo_url(token):
+    """If `token` is a GitHub URL -- an https web URL or an SSH remote -- return
+    (owner/name, number_or_None): a repo URL yields a None number, while a full
+    issue or pull-request URL yields the number embedded in it. Returns None for
+    anything that is not a GitHub URL."""
+    match = _GITHUB_URL.fullmatch(token)
+    if not match:
+        return None
+    repo = f"{match.group('owner')}/{match.group('name')}"
+    number = match.group("number")
+    return repo, int(number) if number is not None else None
 
 
 def parse_numbers(tokens):
@@ -305,7 +345,12 @@ def format_markdown(issue, total_comments):
 
 
 def parse_arguments(argv):
-    """Split argv into (repo_or_None, number_tokens, output_json)."""
+    """Split argv into (repo_or_None, number_tokens, output_json).
+
+    The repo may be an 'owner/name' token, a GitHub repo URL, or a full
+    issue/PR URL -- and a full issue/PR URL also contributes its number, so a
+    single pasted URL suffices. Two arguments that name different repos are an
+    error."""
     output_json = False
     positional = []
     for arg in argv:
@@ -321,9 +366,26 @@ def parse_arguments(argv):
         else:
             positional.append(arg)
 
-    if positional and looks_like_repo(positional[0]):
-        return positional[0], positional[1:], output_json
-    return None, positional, output_json
+    repo = None
+    number_tokens = []
+    for token in positional:
+        parsed = parse_repo_url(token)
+        if parsed is not None:
+            token_repo, token_number = parsed
+        elif looks_like_repo(token):
+            token_repo, token_number = token, None
+        else:
+            number_tokens.append(token)
+            continue
+        if repo is not None and token_repo != repo:
+            fail(
+                f"conflicting repositories given: {repo!r} and {token_repo!r}."
+                f"\n\n{USAGE}"
+            )
+        repo = token_repo
+        if token_number is not None:
+            number_tokens.append(str(token_number))
+    return repo, number_tokens, output_json
 
 
 def show_open_issues_and_usage(repo):
