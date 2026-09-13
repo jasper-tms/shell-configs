@@ -46,6 +46,23 @@ fi
 # path since shell_scripts/ may not be on PATH yet on a freshly set up machine.)
 "$SCRIPT_DIR/../shell_scripts/symlink-skills" "$SCRIPT_DIR"
 
+# Register the filetypes MCP server. It gives Claude native tools --
+# `glob_plus` (a superset of the built-in Glob tool that annotates each match
+# by type) and `list_directory` (an annotated `ls`) -- that report file type
+# (file / directory / symlink-and-its-target / executable), information the
+# built-in Glob tool omits, so symbolic links would otherwise be invisible.
+# The built-in Glob is denied in settings.json so glob_plus takes its place.
+# Registration lands in $CLAUDE_DIR/../.claude.json (Claude's own state file,
+# not tracked in this repo), which is why it is (re)done here rather than
+# committed: each machine gets its own correct absolute path to server.py.
+if claude mcp get filetypes &> /dev/null; then
+    echo "filetypes MCP server already registered"
+else
+    claude mcp add filetypes -s user -- \
+        uv run --script "$SCRIPT_DIR/mcp-servers/filetypes/server.py"
+    echo "registered filetypes MCP server"
+fi
+
 # Claude rewrites settings.json when a session changes the model or effort.
 # Making it read-only stops that but also breaks the slash commands that save a
 # setting -- /tui then fails instead of switching -- so reset it by hand.
