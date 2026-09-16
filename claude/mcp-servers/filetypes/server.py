@@ -100,7 +100,7 @@ def annotate(full_path: str, display: str) -> str:
     return f'{display}  [other]'
 
 
-@server.tool()
+@server.tool(structured_output=False)
 def glob_plus(pattern: str, path: str = '.') -> str:
     """
     Find files and directories matching a glob pattern, annotating each match
@@ -168,7 +168,7 @@ def glob_plus(pattern: str, path: str = '.') -> str:
     return '\n'.join(lines)
 
 
-@server.tool()
+@server.tool(structured_output=False)
 def list_directory(path: str = '.') -> str:
     """
     List the contents of a single directory, annotating each entry with its
