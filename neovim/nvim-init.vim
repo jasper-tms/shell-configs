@@ -101,12 +101,6 @@ set bg=dark
 colorscheme gruvbox
 
 
-" --- Python venv discovery --------------------------------------------------
-" `s:` is a script-local variable (visible only within this file).
-let s:venvs = !empty($WORKON_HOME) ? $WORKON_HOME : expand('~/.virtualenvs')
-let g:python3_host_prog = s:venvs . '/neovim-plugins/bin/python'
-
-
 " --- Linting with ruff ------------------------------------------------------
 let g:ale_linters = {
     \ 'python': ['ruff'],
@@ -114,14 +108,15 @@ let g:ale_linters = {
 " ruff discovers config from the file's project (pyproject.toml / ruff.toml)
 " or falls back to ~/.config/ruff/ruff.toml — symlink that to neovim/ruff.toml
 " in this repo: ln -sf $(realpath neovim/ruff.toml) ~/.config/ruff/ruff.toml
-let g:ale_python_ruff_executable = s:venvs . '/neovim-plugins/bin/ruff'
+" ruff is installed as a standalone CLI via `uv tool install ruff`.
+let g:ale_python_ruff_executable = expand('~/.local/bin/ruff')
 
 
 " --- Auto-formatting on save with ruff --------------------------------------
 let g:ale_fixers = {
     \ 'python': ['ruff_format'],
     \ }
-let g:ale_python_ruff_format_executable = s:venvs . '/neovim-plugins/bin/ruff'
+let g:ale_python_ruff_format_executable = expand('~/.local/bin/ruff')
 " Format on save is opt-in. Enable per-session by launching nvim with
 " RUFF_FORMAT_ON_SAVE=1, or per-shell with `export RUFF_FORMAT_ON_SAVE=1`.
 " Unset or '0' = no format on save; any other value = format on save.

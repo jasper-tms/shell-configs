@@ -10,7 +10,7 @@ case "$cwd" in
     "$HOME"/*) cwd="~${cwd#$HOME}" ;;
 esac
 
-# virtualenvwrapper env prefix: "(env) " when active, empty string when not
+# Active virtual environment prefix: "(env) " when active, empty string when not
 venv_prefix=""
 if [ -n "$VIRTUAL_ENV" ]; then
     venv_prefix="($(basename "$VIRTUAL_ENV")) "

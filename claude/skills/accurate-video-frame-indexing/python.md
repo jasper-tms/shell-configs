@@ -8,7 +8,7 @@ npimage already does frame-exact decoding. Index by frame; never reconstruct
 frames from time.
 
 ```python
-import npimage  # Install with `pip install 'numpyimage[vid]'` if not installed yet
+import npimage  # if missing: `uv add 'numpyimage[vid]'` (or `uv run --with 'numpyimage[vid]'`)
 with npimage.VideoStreamer(fn) as stream:
     n = stream.n_frames          # exact frame count
     image = stream[frame_index]  # exact random access to frame N (decodes from

@@ -44,8 +44,9 @@ nothing:
 
 The one exception to "don't rely on existing environments": use a named
 environment only when the work is clearly tied to one — a repo whose
-README/pyproject says so, or an env the user names (`workon <env>`). Otherwise
-prefer `uv run`.
+README/pyproject says so, or an env the user names (activate it with
+`source <path>/bin/activate`, or `workon <env>` if they use
+virtualenvwrapper). Otherwise prefer `uv run`.
 
 ## Which file to read for more
 
@@ -62,8 +63,9 @@ of work, read the matching file in this same folder:
   add`/`uv sync`, dependencies pip must also see, exporting a lockfile for
   pip-only collaborators, CI/Docker, building wheels).
 - **virtual-environments.md** — creating or populating a long-lived virtual
-  environment with `uv venv` (e.g. under `~/.virtualenvs` so `workon` finds
-  it), and the mandatory `bin/pip` shim.
+  environment with `uv venv` that you activate by name (optionally under
+  `~/.virtualenvs` so virtualenvwrapper's `workon` finds it too), and the
+  mandatory `bin/pip` shim.
 - **editable-registry.md** — the personal system for editable-installing your
   own locally-cloned packages across many project repos (the
   `~/.config/uv/local-packages.toml` registry and its git filter/hook

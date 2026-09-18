@@ -35,7 +35,7 @@ try:
     import lazy_import
 except ImportError:
     print("INFO: lazy_import not found, so not lazy-importing some packages."
-          " `pip install lazy-import` to activate.")
+          " `uv pip install lazy-import` to activate.")
     lazy_import = None
 
 

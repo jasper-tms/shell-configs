@@ -16,14 +16,13 @@ Then launch `nvim` once and run `:PlugInstall` to install the plugins
 (this requires [vim-plug](https://github.com/junegunn/vim-plug) to be
 installed first).
 
-### 2. Create a virtualenv with `ruff` (and Neovim's Python provider, if needed)
+### 2. Install `ruff`
 
-The init file expects a virtualenv at `$WORKON_HOME/neovim-plugins`
-(falling back to `~/.virtualenvs/neovim-plugins`) containing `ruff`:
+The init file runs `ruff` from `~/.local/bin/ruff`, where `uv tool`
+installs standalone command-line tools:
 
 ```sh
-python3 -m venv ~/.virtualenvs/neovim-plugins
-~/.virtualenvs/neovim-plugins/bin/pip install ruff
+uv tool install ruff        # later: uv tool upgrade ruff
 ```
 
 ### 3. Symlink the ruff config to the user-global location

@@ -1,25 +1,29 @@
-# Virtual environments made with `uv venv` (and the bin/pip shim)
+# Long-lived virtual environments made with `uv venv` (and the bin/pip shim)
 
 For a long-lived environment you activate by name rather than a per-project
-`.venv`, create it under `~/.virtualenvs/` so virtualenvwrapper's `workon`
-still lists and activates it — `workon` only needs a `bin/activate`, which
-`uv venv` writes, and it does not care that uv rather than virtualenv built
-the environment. (uv marks its own: `pyvenv.cfg` gets a `uv = <version>`
-line where virtualenv would write `virtualenv = <version>`.)
+`.venv`, create it with `uv venv` and activate it with
+`source <path>/bin/activate`. Put it wherever you keep such environments;
+`~/.virtualenvs/` is a good default, and has the bonus that if you (or the
+machine) use virtualenvwrapper, `workon` lists and activates it too — `workon`
+only needs a `bin/activate`, which `uv venv` writes, and it does not care that
+uv rather than virtualenv built the environment. (uv marks its own:
+`pyvenv.cfg` gets a `uv = <version>` line where virtualenv would write
+`virtualenv = <version>`.)
 
 **Always drop in the pip shim** (step 3 below). `uv venv` deliberately
 installs no pip, so a bare `pip install ...` typed in an activated uv
 environment is not found in its `bin/` and the shell keeps walking PATH until
-it hits an unrelated pip — on a virtualenvwrapper machine, the one belonging
-to the virtualenvwrapper installation itself. That pip hardcodes its own
-interpreter in its shebang and ignores `$VIRTUAL_ENV`, so it installs into
+it hits some other pip — for example, on a virtualenvwrapper machine, the one
+belonging to the virtualenvwrapper installation itself. That pip hardcodes its
+own interpreter in its shebang and ignores `$VIRTUAL_ENV`, so it installs into
 that other environment and reports success. The package is then not
 importable from the environment that is actually active, and nothing in the
 output says why. This is silent and easy to hit, so treat the shim as part of
 creating the environment, not an optional extra.
 
 ```bash
-# 1. Create it (--python pins the interpreter; workon finds it here)
+# 1. Create it (--python pins the interpreter; ~/.virtualenvs also lets
+#    virtualenvwrapper's workon find it, but any path works)
 uv venv ~/.virtualenvs/<name> --python 3.13
 
 # 2. Populate it. uv pip honors $VIRTUAL_ENV, so set it per command rather
