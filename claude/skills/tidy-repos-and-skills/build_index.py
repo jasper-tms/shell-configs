@@ -96,11 +96,45 @@ def repo_relative_folder(skills_dir: Path) -> str:
     return f"{repo_root.name}/{relative.as_posix()}"
 
 
+def git_ignored_names(skills_dir: Path, names: list[str]) -> set[str]:
+    """
+    Return the subset of `names` (immediate children of skills_dir) that git
+    ignores, so the index advertises exactly the committed skills.
+
+    This lets a skill be symlinked into the folder for local use and hidden
+    from git via `.git/info/exclude` (or any .gitignore) without ever
+    appearing in the committed INDEX.md. If skills_dir is not in a git
+    repository, nothing is treated as ignored. This mirrors the scoreTec
+    agent-skills repo's own build_index.py, so a folder that repo maintains
+    (for example scoreTec/agent-skills, which supports privately symlinked
+    skills) produces the identical INDEX.md whether that repo's script or this
+    nightly one regenerates it.
+    """
+    if not names:
+        return set()
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(skills_dir), "check-ignore", "--stdin"],
+            input="\n".join(names), capture_output=True, text=True,
+        )
+    except FileNotFoundError:
+        return set()
+    # check-ignore exits 0 when some paths are ignored, 1 when none are, and
+    # 128 on error (e.g. not a git repo); only 0 and 1 carry a valid answer.
+    if result.returncode not in (0, 1):
+        return set()
+    return {line.strip() for line in result.stdout.splitlines() if line.strip()}
+
+
 def build_index(skills_dir: Path) -> str:
     """Return the full text of the INDEX.md for skills_dir."""
     folder = repo_relative_folder(skills_dir)
+    children = sorted(skills_dir.iterdir(), key=lambda p: p.name)
+    ignored = git_ignored_names(skills_dir, [c.name for c in children])
     entries = []
-    for child in sorted(skills_dir.iterdir(), key=lambda p: p.name):
+    for child in children:
+        if child.name in ignored:
+            continue
         skill_md = child / "SKILL.md"
         if not (child.is_dir() and skill_md.is_file()):
             continue

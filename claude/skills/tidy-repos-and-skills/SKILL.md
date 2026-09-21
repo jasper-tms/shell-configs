@@ -31,21 +31,28 @@ shell, not an agent tool call, so the hook never gates it). Just commit and
 leave main to the wrapper. (You *may* still push a feature branch yourself if a
 repo happens to be on one - the hook allows that.)
 
-## The seven indexed folders
+## Which folders are indexed: the INDEX.md itself is the opt-in
 
-Exactly these version-controlled agent-skills folders carry an `INDEX.md`:
+There is no hand-maintained list of indexed folders. A skills folder
+participates in this task — its `INDEX.md` is regenerated, its skills appear in
+the global `_SKILL_LISTING.md`, and its frontmatter is validated — **if and only
+if it already contains an `INDEX.md`**. Creating that file once (a single
+`build_index.py` run) opts a new folder in; deleting it opts out. So the set of
+indexed folders lives on disk, as the set of existing `INDEX.md` files, not in
+this skill. This is deliberate: it keeps the general "how to tidy" (this skill,
+useful to anyone) separate from the specific "what we tidy" (whatever is on this
+machine's disk).
 
-- `~/repos/jasper-tms/shell-configs/claude/skills`
-- `~/repos/jasper-tms/mac-config/agent-skills`
-- `~/repos/jasper-tms/raspberry-pi/agent-skills`
-- `~/repos/jasper-tms/swiss-table-tennis-chat/agent-skills`
-- `~/repos/scoreTec/reaction-test/agent-skills`
-- `~/repos/jasper-tms/exact-video-engine.js/agent-skills`
-- `~/repos/movim/agent-skills`
+Two folders that do contain real skills are deliberately left **without** an
+`INDEX.md`, so they never participate:
 
-Deliberately excluded: `swiss-table-tennis-chat/skills/` (the chatbot app's own
-runtime skills, not agent skills) and `~/.claude/skills/` (a symlink farm plus
-the unversioned third-party `runpodctl`, not in any repo).
+- `~/repos/jasper-tms/swiss-table-tennis-chat/skills/` — the chatbot app's own
+  runtime skills, loaded by the app itself, not agent skills.
+- `~/.claude/skills/` — a symlink farm plus the unversioned third-party
+  `runpodctl`, not in any repo.
+
+To bring a new folder in, run `build_index.py` on it once and add a section for
+it to `_SKILL_LISTING.md`; from then on this task keeps both current.
 
 ## Regenerating an INDEX.md: use build_index.py
 
@@ -64,8 +71,8 @@ The generated file is repo-relative and clone-portable:
 
 ```
 # Skill index for `raspberry-pi/agent-skills/`
-Each skill below can be found at `raspberry-pi/agent-skills/<skill-name>/SKILL.md`
-- name: <skill-name>. description: <description>
+Each line below lists a single skill as `- <skill-name>: <skill-description>`. Each skill can be found alongside this INDEX.md file at `<skill-name>/SKILL.md`
+- <skill-name>: <description>
 ...
 ```
 
@@ -154,11 +161,28 @@ done
 Record, for the report: repos that were rebased, repos that hit a rebase
 conflict (aborted, untouched), and any credential failures from `pullrepos`.
 
-### 2. Rebuild the seven INDEX.md files
+### 2. Regenerate every INDEX.md on disk
 
-Run `build_index.py` on each of the seven folders (see above). Then, per repo,
-`git diff --stat` the `INDEX.md` to see what actually changed. A changed
-`INDEX.md` means a skill was added, removed, or had its description edited.
+Find every folder that already has an `INDEX.md` beside a set of skills and
+rebuild it. A folder without one is opted out, so it is skipped (see "Which
+folders are indexed"):
+
+```bash
+build_index=~/repos/jasper-tms/shell-configs/claude/skills/tidy-repos-and-skills/build_index.py
+find ~/repos -maxdepth 6 -type f -name INDEX.md \
+    -not -path '*/.git/*' -not -path '*/node_modules/*' | while read -r index; do
+    folder=$(dirname "$index")
+    ls "$folder"/*/SKILL.md >/dev/null 2>&1 || continue  # not a skill index; skip
+    python3 "$build_index" "$folder"
+done
+```
+
+Then, per repo, `git diff --stat` the `INDEX.md` files to see what actually
+changed. A changed `INDEX.md` means a skill was added, removed, or had its
+description edited. Some indexed folders live in other people's repos (for
+example `scoreTec/agent-skills`, whose own `scoretec-tidy-up` skill defers index
+regeneration to this task); regenerating an already-correct index is a no-op, so
+a commit happens only when a skill really changed.
 
 ### 3. Reconcile the global _SKILL_LISTING.md
 
@@ -168,13 +192,19 @@ skill by **name** under its real-folder heading, plus symlink/consumer notes.
 It carries names and locations only - no descriptions (those live in the
 `INDEX.md` files). This step needs judgment, which is why the task is agentic:
 
-- Every skill directory that exists on disk (in any indexed folder, and in the
-  other folders the listing already covers) must appear under the correct
-  heading. Add any that are missing.
-- Every skill named in the listing must still exist on disk. Remove stale ones.
+- Every folder that has an `INDEX.md` (i.e. every indexed folder) should have a
+  section in the listing. If one is missing — a folder was opted in but never
+  listed — add a heading with its real path and its skill names, and note it
+  under **Needs attention** so a human can write the section's consumer/symlink
+  annotation.
+- Within each section, every skill directory that exists on disk must appear
+  under the heading. Add any missing; remove any whose directory is gone.
+- Skip any skill directory git ignores (a privately symlinked skill hidden via
+  `.git/info/exclude`), matching `build_index.py`, so private skills never leak
+  into the listing.
 - Preserve the file's structure and its per-skill annotations (e.g.
-  `(NOT symlinked into ~/.claude/skills)`); only add/remove skill lines, don't
-  reflow the prose.
+  `(NOT symlinked into ~/.claude/skills)`); only add/remove skill lines (and, when
+  a section is genuinely missing, whole sections), don't reflow existing prose.
 
 ### 4. Validate skill frontmatter
 
