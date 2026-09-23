@@ -33,3 +33,9 @@ already deeply embedded and extensively used.
       array = blah
       writer.write(array)
   ```
+- Encoding to bytes in memory instead of a file (e.g. to serve over HTTP or
+  embed in a page): pass `None` as the filename. `save_video(array)` returns
+  the bytes, and `VideoWriter(None).close()` returns them (they're also kept
+  on `writer.bytes`). `format=` picks the container (default `'mp4'`; also
+  `'webm'`, `'mkv'`, `'mov'`, `'avi'`, plus `'gif'` for `save_video` only).
+  Don't write to a temporary file yourself to get bytes.
