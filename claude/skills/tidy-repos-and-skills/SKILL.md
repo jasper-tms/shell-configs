@@ -1,31 +1,48 @@
 ---
 name: tidy-repos-and-skills
-description: The nightly autonomous maintenance pass that pulls every repo on this machine and keeps the skill indexes in sync - each agent-skills folder's INDEX.md and the global ~/.claude/skills/_SKILL_LISTING.md. Load when running, editing, or debugging that task (the cron_tasks/tidy-repos-and-skills job), when an INDEX.md or _SKILL_LISTING.md looks stale or wrong, or when asked to regenerate a skill folder's index.
+description: The nightly autonomous maintenance pass that pulls every repo on this machine, keeps the skill indexes in sync (each agent-skills folder's INDEX.md and the global ~/.claude/skills/_SKILL_LISTING.md), and runs any machine-specific tidy tasks. Load when running, editing, or debugging that task (the tidy-repos-and-skills cron job), when an INDEX.md or _SKILL_LISTING.md looks stale or wrong, or when asked to regenerate a skill folder's index.
 ---
 
 # Tidy repos and skills (nightly maintenance)
 
-This skill is the playbook for the autonomous nightly task
-`~/cron_tasks/tidy-repos-and-skills/`, which runs headless (`claude -p`)
-overnight. It pulls every repo on this machine and keeps two kinds of skill
-index in sync with the actual `SKILL.md` files on disk:
+This skill is the playbook for an autonomous nightly task that runs headless
+(`claude -p`) overnight, launched by a machine-specific wrapper script. It
+pulls every repo under `~/repos` and keeps two kinds of skill index in sync
+with the actual `SKILL.md` files on disk:
 
 - a per-folder `INDEX.md` in each version-controlled agent-skills folder, and
 - the single global `~/.claude/skills/_SKILL_LISTING.md` (names + locations).
 
+It then runs whatever extra tidy tasks this particular machine defines (see
+"Machine-specific tasks").
+
 The same steps are useful interactively whenever an index looks stale, so the
 skill is loadable by any agent, not only the cron job.
+
+## Machine-specific tasks: ~/.config/tidy-repos-and-skills/instructions.md
+
+This skill defines only the machine-independent routine. Everything specific to
+one machine - extra checks, extra files to refresh, folders deliberately left
+unindexed, how that machine's wrapper is tested - lives in
+`~/.config/tidy-repos-and-skills/instructions.md`, outside this repo. That file
+is typically a symlink to a skill in the machine's own config repo. Read it at
+the start of every run: its tasks become extra steps of the nightly sequence
+(step 5 below), and anything it says about the steps here (e.g. folders to
+leave alone) applies too.
+
+If the file does not exist, this machine has no extra tasks; the report says so
+in one line.
 
 ## This task commits on its own; the wrapper pushes main
 
 This is the deliberate exception to the normal `finishing-tasks-in-repos`
-convention (which writes a `commit_*.sh` script for Jasper to run). The nightly
+convention (which writes a `commit_*.sh` script for the user to run). The nightly
 task is autonomous and self-authorized to **commit** its index fixes directly.
 Still follow the message conventions (under 73 characters, start with a verb).
 
 Pushing main is **not** your job. A global `gate-git-push.sh` PreToolUse hook
 denies an agent `git push` to `main`/`master`/`prod` in this headless run, so
-do not attempt one. After you exit, the `run.sh` wrapper pushes the protected
+do not attempt one. After you exit, the wrapper script pushes the protected
 branch for the repos this task maintains (its `git push` runs in the wrapper
 shell, not an agent tool call, so the hook never gates it). Just commit and
 leave main to the wrapper. (You *may* still push a feature branch yourself if a
@@ -43,13 +60,10 @@ this skill. This is deliberate: it keeps the general "how to tidy" (this skill,
 useful to anyone) separate from the specific "what we tidy" (whatever is on this
 machine's disk).
 
-Two folders that do contain real skills are deliberately left **without** an
-`INDEX.md`, so they never participate:
-
-- `~/repos/jasper-tms/swiss-table-tennis-chat/skills/` — the chatbot app's own
-  runtime skills, loaded by the app itself, not agent skills.
-- `~/.claude/skills/` — a symlink farm plus the unversioned third-party
-  `runpodctl`, not in any repo.
+`~/.claude/skills/` itself is always left **without** an `INDEX.md`: it is a
+symlink farm plus unversioned third-party skills, not in any repo. The machine
+instructions file may name further folders that contain `SKILL.md` files but
+are deliberately left unindexed (e.g. an app's own runtime skills).
 
 To bring a new folder in, run `build_index.py` on it once and add a section for
 it to `_SKILL_LISTING.md`; from then on this task keeps both current.
@@ -58,19 +72,19 @@ it to `_SKILL_LISTING.md`; from then on this task keeps both current.
 
 Never hand-transcribe an `INDEX.md`. This skill ships `build_index.py`, which
 reads each `SKILL.md`'s frontmatter and deterministically rewrites the folder's
-`INDEX.md` (skills sorted by name, so diffs stay stable). This skill is
-intentionally **not** symlinked into `~/.claude/skills`, so refer to
-`build_index.py` by its real path next to this `SKILL.md`. Run it per folder:
+`INDEX.md` (skills sorted by name, so diffs stay stable). It sits next to this
+`SKILL.md` - refer to it by the real path of the directory you read this skill
+from. Run it per folder:
 
 ```bash
-build_index=~/repos/jasper-tms/shell-configs/claude/skills/tidy-repos-and-skills/build_index.py
-python3 "$build_index" ~/repos/jasper-tms/raspberry-pi/agent-skills
+build_index=<this skill's directory>/build_index.py
+python3 "$build_index" ~/repos/<owner>/<repo>/agent-skills
 ```
 
 The generated file is repo-relative and clone-portable:
 
 ```
-# Skill index for `raspberry-pi/agent-skills/`
+# Skill index for `<repo>/agent-skills/`
 Each line below lists a single skill as `- <skill-name>: <skill-description>`. Each skill can be found alongside this INDEX.md file at `<skill-name>/SKILL.md`
 - <skill-name>: <description>
 ...
@@ -82,19 +96,17 @@ The Agent Skills spec makes both `name:` and `description:` mandatory, and
 requires each skill's `name:` to match its parent directory name. This skill
 ships `validate_skill_frontmatter.py`, which enforces all three across every
 skill the global listing knows about. It reads the folder set straight from
-`~/repos/jasper-tms/raspberry-pi/agent-skills/_SKILL_LISTING.md` (no hardcoded
+`~/.claude/skills/_SKILL_LISTING.md` (no hardcoded
 folder list to drift out of date), so a skill added anywhere the listing covers
 gets checked automatically, and it reuses `build_index.py`'s frontmatter parser.
-Like `build_index.py`, it sits next to this `SKILL.md` and is intentionally
-**not** symlinked into `~/.claude/skills`, so refer to it by its real path. Run
-it and route any output into the report's **Needs attention**:
+Like `build_index.py`, it sits next to this `SKILL.md`. Run it and route any
+output into the report's **Needs attention**:
 
 ```bash
-validate=~/repos/jasper-tms/shell-configs/claude/skills/tidy-repos-and-skills/validate_skill_frontmatter.py
-python3 "$validate"
+python3 <this skill's directory>/validate_skill_frontmatter.py
 ```
 
-It checks the raspberry-pi `_SKILL_LISTING.md` by default; pass a different
+It checks `~/.claude/skills/_SKILL_LISTING.md` by default; pass a different
 listing path as an argument to check another. It prints one problem per line (or
 `all listed skills valid`) and exits nonzero when any listed skill is invalid.
 
@@ -110,10 +122,9 @@ instances of: **a place that asserts some state should be true, which has
 silently drifted from what is actually true.** The index files assert "these
 skills exist"; frontmatter asserts "`name:` matches the folder"; a README
 asserts "the cron line is `0 3 * * *`" or "this file is the source of truth"; a
-committed `crontab.txt` asserts "this is the live crontab" (the machine-specific
-`crontab -l` vs `crontab.txt` diff, which lives in this task's `run.sh` prompt,
-not here). These drift because the assertion and the reality are edited at
-different times by different people or agents.
+committed `crontab.txt` asserts "this is the live crontab". These drift
+because the assertion and the reality are edited at different times by
+different people or agents.
 
 You cannot enumerate every such assertion in advance — new ones appear with every
 refactor. So when, in the course of the nightly pull and index work, you happen
@@ -127,12 +138,14 @@ the whole value — a drifted assertion is invisible until someone trusts it.
 
 If a particular assertion turns out to be worth checking every single night,
 that is a signal to promote it to a deterministic check (like the frontmatter
-validator above, or the crontab diff in `run.sh`) rather than relying on
-noticing it.
+validator above, or a task in the machine instructions file) rather than
+relying on noticing it.
 
 ## Nightly sequence
 
-Run these in order. Keep a running note of everything worth reporting.
+First read `~/.config/tidy-repos-and-skills/instructions.md` if it exists (see
+"Machine-specific tasks"). Then run these in order. Keep a running note of
+everything worth reporting.
 
 ### 1. Pull every repo, rebasing where needed
 
@@ -168,7 +181,7 @@ rebuild it. A folder without one is opted out, so it is skipped (see "Which
 folders are indexed"):
 
 ```bash
-build_index=~/repos/jasper-tms/shell-configs/claude/skills/tidy-repos-and-skills/build_index.py
+build_index=<this skill's directory>/build_index.py
 find ~/repos -maxdepth 6 -type f -name INDEX.md \
     -not -path '*/.git/*' -not -path '*/node_modules/*' | while read -r index; do
     folder=$(dirname "$index")
@@ -179,15 +192,14 @@ done
 
 Then, per repo, `git diff --stat` the `INDEX.md` files to see what actually
 changed. A changed `INDEX.md` means a skill was added, removed, or had its
-description edited. Some indexed folders live in other people's repos (for
-example `scoreTec/agent-skills`, whose own `scoretec-tidy-up` skill defers index
-regeneration to this task); regenerating an already-correct index is a no-op, so
+description edited. Some indexed folders may live in other people's repos
+(whose own tooling may defer index regeneration to this task); regenerating an already-correct index is a no-op, so
 a commit happens only when a skill really changed.
 
 ### 3. Reconcile the global _SKILL_LISTING.md
 
-`~/.claude/skills/_SKILL_LISTING.md` (real file:
-`~/repos/jasper-tms/raspberry-pi/agent-skills/_SKILL_LISTING.md`) lists every
+`~/.claude/skills/_SKILL_LISTING.md` (usually a symlink into a
+machine-specific repo; commit edits to its real file there) lists every
 skill by **name** under its real-folder heading, plus symlink/consumer notes.
 It carries names and locations only - no descriptions (those live in the
 `INDEX.md` files). This step needs judgment, which is why the task is agentic:
@@ -214,9 +226,15 @@ reconciled against disk). Add any problems it prints - a missing mandatory
 report's **Needs attention** section. These need a human to fix the offending
 `SKILL.md`; the nightly task does not rewrite skill frontmatter itself.
 
-### 5. Commit per repo (the wrapper pushes main)
+### 5. Run the machine-specific tasks
 
-For each repo touched in steps 1-3, commit the changed files with a verb-first
+Do each task the machine instructions file defines, as it describes. Each task
+gets its own line in the report, under the label the instructions give it. If
+there is no instructions file, skip this step.
+
+### 6. Commit per repo (the wrapper pushes main)
+
+For each repo touched in steps 1-5, commit the changed files with a verb-first
 message under 73 characters (e.g. `Refresh skill INDEX.md files`,
 `Sync _SKILL_LISTING.md with skills on disk`). Do **not** `git push` a
 main/master/prod branch - the hook blocks it and the wrapper pushes it for you
@@ -225,7 +243,7 @@ The wrapper records what it pushed, or any rejected push, into the report
 itself, so you do not need to. If a repo happens to be on a feature branch, you
 may push that yourself; never force-push.
 
-### 6. Write the report file
+### 7. Write the report file
 
 Write your final summary to the path in the `TIDY_REPORT_FILE` environment
 variable. The **first line** is the machine-readable status the wrapper keys
@@ -254,14 +272,16 @@ not cost more than one line.** After the status line, write:
    - `✓ Regenerate agent-skills INDEX.md: no change` - or `... : updated <repos>`.
    - `✓ Reconcile global _SKILL_LISTING.md: no change` - or `... : <what changed>`.
    - `✓ Validate skill frontmatter: valid` - or `⚠ Validate skill frontmatter: <problems>`.
-   - `✓ Check crontab vs source: in sync` - or `⚠ Check crontab vs source: <diff summary>`.
+   - One line per machine-specific task, using the labels the instructions file
+     gives. With no instructions file, write the single line
+     `✓ Machine-specific tasks: none configured`.
 
    (The wrapper appends its own push-outcome line after you exit - do not write
    one, and do not report on pushing main.)
 
 3. A `⚠ Needs attention (<n>):` block **only if** something needs attention: a
-   rebase conflict, a credential failure, a frontmatter problem, a crontab diff,
-   or asserted-state drift you noticed (see "Watch for asserted-state drift").
+   rebase conflict, a credential failure, a frontmatter problem, a
+   machine-specific task's problem, or asserted-state drift you noticed (see "Watch for asserted-state drift").
    This is the one place to expand - give each item the file/command and the
    specific contradiction, enough to act on without re-investigating. Every step
    line you marked `⚠` above must appear here in full. Omit the whole block when
@@ -279,23 +299,23 @@ Example of a run with one real issue (this is the whole email):
 STATUS: report
 tidy-repos-and-skills - 2026-09-10
 
-✓ Pull all repos: OK (rebased: SportID)
-✓ Regenerate agent-skills INDEX.md: updated reaction-test
+✓ Pull all repos: OK (rebased: my-app)
+✓ Regenerate agent-skills INDEX.md: updated my-app
 ✓ Reconcile global _SKILL_LISTING.md: no change
 ✓ Validate skill frontmatter: valid
-✓ Check crontab vs source: in sync
+✓ Machine-specific tasks: none configured
 
 ⚠ Needs attention (1):
-- uv-sources clean filter not configured on this Pi; checkout/rebase leaves
-  [tool.uv.sources] staged, and a commit could leak local absolute paths.
-  Fix: using-uv INSTALL.md steps 4-5.
+- uv-sources clean filter not configured on this machine; checkout/rebase
+  leaves [tool.uv.sources] staged, and a commit could leak local absolute
+  paths. Fix: using-uv INSTALL.md steps 4-5.
 ```
 
 A fully clean run is `STATUS: quiet` and sends no email at all - so every email
 that does arrive has at most a handful of `✓` lines plus, when it matters, the
 `⚠ Needs attention` block.
 
-## Testing without spamming Jasper
+## Testing
 
-`run.sh --dry-run` runs the whole task but the email step only prints what it
-would send. Use it to verify behavior without mailing anyone.
+How to test-run the wrapper without committing or sending email is
+machine-specific; see the machine instructions file.

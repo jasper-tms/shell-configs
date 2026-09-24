@@ -14,9 +14,8 @@ Usage
 -----
     validate_skill_frontmatter.py [LISTING]
 
-LISTING defaults to
-`~/repos/jasper-tms/raspberry-pi/agent-skills/_SKILL_LISTING.md`. Problems are
-printed one per line (or `all listed skills valid` when there are none), and the
+LISTING defaults to `~/.claude/skills/_SKILL_LISTING.md`. Problems are printed
+one per line (or `all listed skills valid` when there are none), and the
 exit status is 1 when any problem is found, else 0.
 
 Folders that are absent (repos not cloned on this machine) are skipped. A
@@ -28,9 +27,7 @@ from pathlib import Path
 
 from build_index import read_frontmatter  # reuse the same frontmatter parser
 
-DEFAULT_LISTING = Path(
-    '~/repos/jasper-tms/raspberry-pi/agent-skills/_SKILL_LISTING.md'
-).expanduser()
+DEFAULT_LISTING = Path('~/.claude/skills/_SKILL_LISTING.md').expanduser()
 
 
 def listed_skill_pairs(listing: Path) -> list[tuple[Path, str]]:
@@ -38,8 +35,8 @@ def listed_skill_pairs(listing: Path) -> list[tuple[Path, str]]:
     Return every (folder, skill-name) pair named in a `_SKILL_LISTING.md`.
 
     A header naming an absolute path sets the current folder (and the base for
-    relative sub-folder headers like the swiss repo's `### agent-skills/`);
-    bullets beneath it are that folder's skills.
+    relative sub-folder headers like `### agent-skills/`); bullets beneath it
+    are that folder's skills.
     """
     pairs: list[tuple[Path, str]] = []
     base: Path | None = None
