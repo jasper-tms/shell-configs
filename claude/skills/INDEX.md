@@ -6,6 +6,7 @@ Each line below lists a single skill as `- <skill-name>: <skill-description>`. E
 - fix-mouse-movements-appearing-as-text-in-terminal: Moving the mouse over a terminal window injects junk like `[<35;60;12M` into the prompt. Fix stuck xterm mouse reporting (common after an ssh/TUI connection drop). `reset` does not fix it on macOS.
 - google-sheet-backed-web-form: Collect HTML form submissions into a Google Sheet via an Apps Script web app, with no backend of your own. Load when adding a form to a static site.
 - make-new-skill: Load when the user wants to make or edit a skill, asks about the skills format, or at the end of any work where important decisions or discoveries have been made that would be useful to document for future reference.
+- parallel-development: Load before creating a git worktree (instead of using EnterWorktree), whenever told to use a worktree or that other agents/sessions are working in the same repo in parallel, and when finishing or merging worktree work.
 - python-code-formatting: Load whenever writing or editing Python code file. Not needed for directly invoking python with inline commands.
 - python-image-io-use-npimage: In Python, always use Jasper's npimage package (not opencv/pillow/imageio/etc.) for reading and writing images and videos. Load whenever Python code loads, saves, or streams an image or video file, or reads/writes video frames.
 - reading-pdfs: Read text from PDFs.
