@@ -1,20 +1,28 @@
 # MCP servers
 
 Model Context Protocol servers that give Claude Code extra native tools. Each
-subdirectory is one server; `../configure.sh` registers them at user scope with
-`claude mcp add`, so every Claude session on the machine can call them.
+subdirectory is one server.
 
-## filetypes
+## filetypes (deprecated)
+
+No longer registered: agents can't call MCP tools inside compound Bash
+commands, so `../CLAUDE.md` now has them use `ls -F` instead. Kept as a
+template of a working MCP server.
 
 A stdio server whose tools annotate every entry by type (file / directory /
-symlink-and-its-target / executable) — the type information Claude Code's
-built-in tools omit:
+symlink-and-its-target / executable):
 
-- `glob_plus` is a superset of the built-in Glob tool (same recursive pattern
-  matching, most-recently-modified first) with every result annotated by type.
-  The built-in Glob is denied in `settings.json` and this replaces it; a note
-  in `../CLAUDE.md` tells Claude to reach for it.
+- `glob_plus` does recursive pattern matching, most-recently-modified first,
+  with every result annotated by type.
 - `list_directory` is an annotated `ls` of a single directory.
+
+To register it at user scope for every Claude session on the machine (this
+writes to `~/.claude.json`, not to this repo):
+
+```bash
+claude mcp add filetypes -s user -- \
+    uv run --script "$PWD/filetypes/server.py"
+```
 
 ## Gotcha: the `mcp` package is on version 2
 
