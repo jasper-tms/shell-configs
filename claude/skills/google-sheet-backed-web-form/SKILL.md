@@ -8,34 +8,68 @@ description: Collect HTML form submissions into a Google Sheet via an Apps Scrip
 A static site (GitHub Pages, Cloudflare Pages, plain S3) has nowhere to POST a
 form to. An Apps Script web app bound to a Google Sheet gives you a public
 endpoint that appends a row per submission — no server, no database, and the
-submissions land somewhere non-technical people can read and filter.
+submissions land somewhere non-technical people can read and filter. A save
+takes about 1.5–4 seconds.
 
 ## 1. Sheet + script
 
-Make a sheet, give it column headers, then **Extensions → Apps Script**. The
-script that opens is already bound to that sheet, so `getActiveSpreadsheet()`
-resolves to it with no ID to configure:
+Make a sheet with a named tab and column headers, then **Extensions → Apps
+Script**. The script that opens is already bound to that sheet, so
+`getActiveSpreadsheet()` resolves to it with no ID to configure:
 
 ```javascript
+var TAB_NAME = 'signups';
+
+// Header text in the tab → payload field it is filled from.
+var FIELD_FOR_HEADER = {
+  'Name': 'name',
+  'Email': 'email',
+};
+
 function doPost(e) {
-  var data = JSON.parse(e.postData.contents);
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  // One entry per column, in column order. Adjust to your columns.
-  sheet.appendRow([new Date(), data.name, data.email]);
-  return ContentService
-    .createTextOutput(JSON.stringify({result: 'success'}))
-    .setMimeType(ContentService.MimeType.JSON);
+  try {
+    var data = JSON.parse(e.postData.contents);
+    if (!data.email) throw new Error('Missing email');
+    var tab = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TAB_NAME);
+    if (!tab) throw new Error('Missing "' + TAB_NAME + '" tab');
+    var headers = tab.getRange(1, 1, 1, tab.getLastColumn()).getValues()[0];
+    tab.appendRow(headers.map(function (header) {
+      header = String(header).trim();
+      if (header === 'Timestamp') return new Date();
+      var field = FIELD_FOR_HEADER[header];
+      return field ? asCellText(data[field]) : '';
+    }));
+    return jsonResponse({ result: 'success' });
+  } catch (error) {
+    return jsonResponse({ result: 'error', message: String(error) });
+  }
 }
 
 function doGet(e) {
-  return ContentService
-    .createTextOutput('OK')
+  return ContentService.createTextOutput('OK')
     .setMimeType(ContentService.MimeType.TEXT);
+}
+
+// Submitted text is untrusted: a leading = + - or @ would make Sheets treat
+// it as a formula, so prefix an apostrophe to keep it plain text.
+function asCellText(value) {
+  if (value === undefined || value === null) return '';
+  var text = String(value);
+  return /^[=+\-@]/.test(text) ? "'" + text : text;
+}
+
+function jsonResponse(object) {
+  return ContentService.createTextOutput(JSON.stringify(object))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 ```
 
-`doGet` is not required, but it makes the endpoint answer a browser visit,
-which is the quickest way to confirm the deployment is live.
+- Look the tab up by name, not with `getActiveSheet()`: in a web app that
+  means the leftmost tab, so reordering tabs silently redirects submissions.
+- Matching columns by header text lets people reorder or add columns in the
+  sheet without breaking the script.
+- `doGet` makes the endpoint answer a browser visit with `OK`, the quickest
+  way to confirm the deployment is live.
 
 ## 2. Deploy it
 
@@ -43,67 +77,65 @@ which is the quickest way to confirm the deployment is live.
 otherwise the browser's anonymous POST is rejected. You get a URL of the form
 `https://script.google.com/macros/s/<deployment-id>/exec`.
 
-⚠️ **Editing the script does not update the deployment.** Deploy a new version
-(or use "Manage deployments" to point the existing one at the new version) or
-you will keep hitting the old code.
+⚠️ **Saving the script does not update the deployment.** After each change,
+use Deploy → Manage deployments → edit the existing deployment → Version: "New
+version". That keeps the URL. "New deployment" instead makes a new URL, while
+the old one keeps serving the old code.
 
 ## 3. Post to it from the page
 
+POST with `Content-Type: text/plain` and the default `mode`. A text/plain body
+avoids the CORS preflight request that Apps Script can't answer, and without
+`mode: 'no-cors'` the page can read the reply. Apps Script answers the POST
+with a redirect to `script.googleusercontent.com`; both responses carry
+`Access-Control-Allow-Origin: *`, so the browser follows it and hands the page
+the JSON. Show success only once the reply says so:
+
 ```html
 <form id="signupForm">
-  <input type="text"  name="name"  placeholder="Your name" required>
   <input type="email" name="email" placeholder="Your email" required>
-  <button type="submit" id="submitBtn">Join the list</button>
+  <input type="text"  name="name"  placeholder="Your name">
+  <button type="submit" id="submitButton">Join the list</button>
+  <p id="submitError" hidden>Something went wrong. Please try again.</p>
 </form>
 ```
 
 ```javascript
 document.getElementById('signupForm').addEventListener('submit', function (event) {
-    event.preventDefault();
+  event.preventDefault();
+  const endpointUrl = 'https://script.google.com/macros/s/<deployment-id>/exec';
+  const form = this;
+  const formData = new FormData(form);
+  const submitButton = document.getElementById('submitButton');
+  const submitError = document.getElementById('submitError');
+  submitButton.disabled = true;
+  submitButton.textContent = 'Submitting…';
+  submitError.hidden = true;
 
-    const endpointUrl = 'https://script.google.com/macros/s/<deployment-id>/exec';
-    const form = this;
-    const formData = new FormData(form);
-    const data = {
-        name: formData.get('name'),
-        email: formData.get('email'),
-    };
-
-    const submitButton = document.getElementById('submitBtn');
-    submitButton.disabled = true;
-    submitButton.innerText = 'Submitting...';
-
-    fetch(endpointUrl, {
-        method: 'POST',
-        mode: 'no-cors',
-        cache: 'no-cache',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(data),
-    }).then(() => {
-        form.reset();
-        form.classList.add('submitted');   // CSS swaps in a success message
-    }).catch((error) => {
-        console.error('Error!', error.message);
-        submitButton.disabled = false;
-        submitButton.innerText = 'Join the list';
-        alert('Something went wrong. Please check your connection and try again.');
+  fetch(endpointUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ name: formData.get('name'), email: formData.get('email') }),
+  })
+    .then((response) => response.json())
+    .then((reply) => {
+      if (reply.result !== 'success') throw new Error(reply.message);
+      form.reset();
+      form.classList.add('submitted');   // CSS swaps in a success message
+    })
+    .catch((error) => {
+      console.error('Sign-up failed:', error);
+      submitError.hidden = false;
+    })
+    .finally(() => {
+      submitButton.disabled = false;
+      submitButton.textContent = 'Join the list';
     });
 });
 ```
 
-## ⚠️ `no-cors` means you cannot tell whether it worked
+## Testing from a terminal
 
-Apps Script does not send CORS headers a browser will accept for a cross-origin
-JSON POST, so the request goes out with `mode: 'no-cors'`. That makes the
-response **opaque**: `.then()` fires as long as the request left the machine,
-and the `{result: 'success'}` the script so carefully returns is unreadable.
-
-So the success message is **optimistic**. `.catch()` sees network-level
-failures only — it will not fire on a 500 in the script, a bad deployment, or a
-sheet you lost write access to. Treat the sheet itself as the only proof of
-delivery, and after any change to the script, submit once and **go look at the
-sheet**.
-
-If you genuinely need to read the response, the endpoint must be same-origin
-(proxy it through your own backend), which defeats the point of this pattern —
-at which point you want a real form service instead.
+`curl -sL --data '<json>' <url>` prints the script's JSON reply. Don't add
+`-X POST`: it makes curl re-POST to the redirect target, which answers 405
+even though the row was already written.
