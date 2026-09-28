@@ -256,6 +256,7 @@
       "/tmp"
     ]
   },
+  "model": "opus[1m]",
   "availableModels": [
     "fable",
     "claude-opus-5-5[1m]",
@@ -291,6 +292,5 @@
       "$defaults",
       "git push is allowed when user has said they want the agent to do it, even pushing to main or master branches"
     ]
-  },
-  "model": "claude-opus-5-5[1m]"
+  }
 }
