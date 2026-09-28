@@ -44,19 +44,91 @@ augroup END
 " is off by default for most filetypes, but on by default for markdown (see
 " the filetype-specific settings above). Run :HardWrap in a buffer to toggle
 " it: on at 79 columns, or off again.
+"
+" Turning hard wrap off is remembered per file, so the file opens unwrapped
+" next time too. Each remembered file gets an empty marker file in
+" ~/.local/state/nvim/no-hard-wrap/ named after the file's absolute path,
+" percent-encoded so it's a valid, unambiguous filename ('%' becomes '%25' and
+" '/' becomes '%2F'). This makes checking, remembering, and forgetting a file
+" each a single filesystem operation regardless of how many files are
+" remembered. Remembered settings don't follow a file if it is moved or
+" renamed.
+let s:no_hard_wrap_directory = stdpath('state') . '/no-hard-wrap'
+" Most filesystems (including APFS and ext4) cap filenames at 255 bytes
+let s:maximum_filename_bytes = 255
+
+function! s:NoHardWrapMarkerPath(file_path) abort
+  let encoded = substitute(a:file_path, '%', '%25', 'g')
+  let encoded = substitute(encoded, '/', '%2F', 'g')
+  " Keep only the end of names too long for the filesystem. Two deep paths
+  " sharing the same last ~255 bytes would then share a marker, which is rare
+  " enough to accept. Trim whole characters (not bytes) so a multibyte
+  " character never gets split into an invalid filename.
+  if strlen(encoded) > s:maximum_filename_bytes
+    let encoded = strcharpart(encoded, strchars(encoded) - s:maximum_filename_bytes)
+    while strlen(encoded) > s:maximum_filename_bytes
+      let encoded = strcharpart(encoded, 1)
+    endwhile
+  endif
+  return s:no_hard_wrap_directory . '/' . encoded
+endfunction
+
+function! s:CurrentFilePath() abort
+  " Empty for buffers that aren't backed by a file (e.g. unnamed buffers)
+  if empty(expand('%')) || !empty(&buftype)
+    return ''
+  endif
+  return resolve(expand('%:p'))
+endfunction
+
 function! s:ToggleHardWrap() abort
+  let file_path = s:CurrentFilePath()
   if &l:textwidth == 0
     setlocal textwidth=79
     " Remove the 'l' flag some ftplugins (e.g. markdown's) add, so lines
     " already longer than textwidth get wrapped as you keep typing on them.
     setlocal formatoptions-=l
+    if !empty(file_path)
+      call delete(s:NoHardWrapMarkerPath(file_path))
+    endif
     echo 'Hard wrap on (textwidth=79)'
   else
     setlocal textwidth=0
-    echo 'Hard wrap off'
+    if empty(file_path)
+      echo 'Hard wrap off'
+      return
+    endif
+    call mkdir(s:no_hard_wrap_directory, 'p')
+    call writefile([], s:NoHardWrapMarkerPath(file_path))
+    echo 'Hard wrap off (remembered for this file)'
   endif
 endfunction
 command! HardWrap call s:ToggleHardWrap()
+
+function! s:NotifyRememberedNoHardWrap(timer_id) abort
+  echomsg 'Hard wrap off (remembered for this file)'
+endfunction
+
+" Runs after the filetype-specific settings above (autocommands run in the
+" order they were defined), so it overrides their default textwidth.
+function! s:ApplyRememberedNoHardWrap() abort
+  " Only files whose filetype hard wraps by default need overriding
+  if &l:textwidth == 0
+    return
+  endif
+  let file_path = s:CurrentFilePath()
+  if !empty(file_path) && filereadable(s:NoHardWrapMarkerPath(file_path))
+    setlocal textwidth=0
+    " Deferred until loading finishes, since the '"file" 12L, 340B' message
+    " printed while loading would otherwise overwrite this notice
+    call timer_start(0, function('s:NotifyRememberedNoHardWrap'))
+  endif
+endfunction
+
+augroup remembered_no_hard_wrap
+  autocmd!
+  autocmd FileType * call s:ApplyRememberedNoHardWrap()
+augroup END
 
 
 " --- Clipboard --------------------------------------------------------------
