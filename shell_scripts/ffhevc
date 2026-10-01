@@ -5,6 +5,7 @@ inputname=""
 fake=false
 crf=28
 metadata=true
+user_movflags=""
 while [ "$#" -gt 0 ]; do
     case "$1" in
         -f|--fake)
@@ -18,6 +19,18 @@ while [ "$#" -gt 0 ]; do
             ;;
         -q|--quality|-c|-crf|--crf)
             crf="$2"
+            shift
+            shift
+            ;;
+        -movflags)
+            # Collected separately and merged with this script's own movflags
+            # below, since ffmpeg only honors the last -movflags option given.
+            # A value without a leading + or - is treated as additions rather
+            # than as a replacement, so it can't silently drop faststart.
+            case "$2" in
+                +*|-*) user_movflags="$user_movflags$2" ;;
+                *) user_movflags="$user_movflags+$2" ;;
+            esac
             shift
             shift
             ;;
@@ -44,10 +57,19 @@ outputname="${inputname%.*}.hevc-crf${crf}.mp4"
 # and -movflags use_metadata_tags is required for the mp4 muxer to also write
 # the Apple com.apple.quicktime.* keys (GPS location, make, model) rather than
 # silently dropping them. Disable with --no-metadata.
+#
+# faststart moves the mp4 index to the start of the file so playback can begin
+# before the whole file has downloaded (Dropbox previews, browsers, etc.).
+#
+# ffmpeg only honors the last -movflags option, so all flags (including any
+# the user passed) are merged into a single -movflags value.
 metadata_args=""
+movflags="+faststart"
 if $metadata; then
-    metadata_args="-map_metadata 0 -movflags use_metadata_tags"
+    metadata_args="-map_metadata 0"
+    movflags="$movflags+use_metadata_tags"
 fi
+movflags="$movflags$user_movflags"
 
 if $fake; then
     echo ffmpeg -i "$inputname" \
@@ -56,6 +78,7 @@ if $fake; then
                 -colorspace bt2020nc -color_primaries bt2020 -color_trc arib-std-b67 \
                 -crf $crf \
                 $metadata_args \
+                -movflags "$movflags" \
                 $args \
                 "$outputname"
     exit 0
@@ -66,5 +89,6 @@ ffmpeg -i "$inputname" \
        -colorspace bt2020nc -color_primaries bt2020 -color_trc arib-std-b67 \
        -crf $crf \
        $metadata_args \
+       -movflags "$movflags" \
        $args \
        "$outputname"
