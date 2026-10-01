@@ -30,7 +30,9 @@ cd worktree_<branch-name>
 ```
 
 Then work on the requested task as usual, keeping all edits inside the
-worktree.
+worktree. As the very last thing that you say before you end your first turn
+(whether that's to ask the user for input or telling them that you've finished
+the task), say to the user `\n\nYou may want to run "/name <branch-name>"`
 
 ## Finishing
 
