@@ -26,25 +26,33 @@ max_parallel_pulls=16
 print_pause_secs=0.05
 
 # Run `git pull` in the current directory, killing and retrying it if it
-# doesn't finish within pull_timeout_secs, up to pull_max_attempts times.
+# doesn't finish within the timeout, up to pull_max_attempts times. The
+# timeout is pull_timeout_secs unless the repo overrides it with its own
+# `pullrepos.timeout` git config setting (for repos known to pull slowly,
+# set via `git config pullrepos.timeout 120` inside the repo).
 # Prints the combined stdout/stderr of the pull (or a failure notice) and
 # returns non-zero only if every attempt timed out.
 pull_with_retry() {
     local attempt=1
     local tmpfile elapsed pid status
+    local timeout_secs
+    timeout_secs=$(git config --get pullrepos.timeout)
+    if ! [[ "$timeout_secs" =~ ^[0-9]+$ ]]; then
+        timeout_secs=$pull_timeout_secs
+    fi
     while [ "$attempt" -le "$pull_max_attempts" ]; do
         tmpfile=$(mktemp)
         git pull >"$tmpfile" 2>&1 &
         pid=$!
         elapsed=0
         while kill -0 "$pid" 2>/dev/null; do
-            if [ "$elapsed" -ge "$pull_timeout_secs" ]; then
+            if [ "$elapsed" -ge "$timeout_secs" ]; then
                 kill -TERM -- -"$pid" 2>/dev/null
                 sleep 1
                 kill -KILL -- -"$pid" 2>/dev/null
                 wait "$pid" 2>/dev/null
                 rm -f "$tmpfile"
-                echo "$(pwd): git pull timed out after ${pull_timeout_secs}s (attempt $attempt/$pull_max_attempts)" >&2
+                echo "$(pwd): git pull timed out after ${timeout_secs}s (attempt $attempt/$pull_max_attempts)" >&2
                 attempt=$((attempt + 1))
                 continue 2
             fi
@@ -83,7 +91,9 @@ while [ $# -gt 0 ]; do
             echo "With -v, every repo is printed as it is pulled, even if it was"
             echo "already up to date."
             echo "If a pull takes longer than ${pull_timeout_secs}s it is cancelled and retried,"
-            echo "up to $pull_max_attempts attempts total."
+            echo "up to $pull_max_attempts attempts total. A repo that pulls slowly can"
+            echo "get a longer timeout by running this inside it:"
+            echo "  git config pullrepos.timeout 120"
             echo "Up to $max_parallel_pulls repos are pulled in parallel."
             echo "Interactive credential prompts are disabled: any repo whose"
             echo "GitHub credentials aren't cached fails instantly (rather than"
