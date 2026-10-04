@@ -1,4 +1,8 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.10"
+# dependencies = []
+# ///
 """
 Post a comment on a GitHub issue on behalf of the autonomous issue workflow,
 then hand the issue off by swapping its workflow labels.
