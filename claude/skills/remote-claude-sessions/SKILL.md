@@ -28,6 +28,23 @@ CLAUDE_WORK_DIR=/path/to/project ~/.claude/skills/remote-claude-sessions/launch-
 CLAUDE_WORK_DIR=/path/to/project ~/.claude/skills/remote-claude-sessions/launch-new-claude-remote-control.sh "their prompt"
 ```
 
+To continue an earlier conversation instead of starting fresh, pass
+`--continue` (`-c`: the most recent conversation in the working directory) or
+`--resume <session id or search term>` (`-r`). The default "Wait for further
+instructions" prompt is then skipped, so the conversation picks up as it was.
+Use `--dir` to choose the working directory whose latest conversation to
+continue (the script has more options; see `--help`):
+
+```
+~/.claude/skills/remote-claude-sessions/launch-new-claude-remote-control.sh -d ~/repos/scoreTec --continue
+```
+
+To know a session's id up front (e.g. to `--resume` it later), pass
+`--session-id <uuid>` (generate one with `uuidgen`). Combining it with
+`--continue`/`--resume` also requires `--fork-session`, which branches the
+conversation into the new id. To tag the Remote Control display name, use
+`--suffix` (`-s worker` gives `rpi-N-worker`).
+
 ## Required: verify the new session before reporting success
 
 After launching, you MUST confirm the new session is at the main UI (not

@@ -46,6 +46,22 @@
 #                          so screen copy mode (ctrl+A esc) scrolls history;
 #                          fullscreen's mouse-wheel scrollback is dead here
 #                          (mouse disabled). Set here, not via /tui (restarts).
+#   -c, --continue         Continue the most recent conversation in the
+#                          working directory (claude -c). No default
+#                          initial prompt is sent, so the conversation
+#                          resumes as it was; pass a prompt explicitly to
+#                          send one anyway.
+#   -r, --resume <value>   Resume a specific conversation by session id or
+#                          search term (claude -r <value>). The value is
+#                          required. Like --continue, sends no default
+#                          initial prompt.
+#   --session-id <uuid>    Give the conversation this session id (a valid
+#                          UUID with no existing transcript), e.g. so it can
+#                          be resumed later with --resume <uuid>. With
+#                          --continue or --resume, requires --fork-session.
+#   --fork-session         With --continue or --resume, branch into a new
+#                          session id instead of reusing the original
+#                          (claude --fork-session).
 #   -h, --help             Show this help and exit.
 #
 # Examples:
@@ -54,12 +70,16 @@
 #   ./launch-new-claude-remote-control.sh --model fable "/developer Run a loop"
 #   ./launch-new-claude-remote-control.sh -m fable -d ~/repos/jasper-tms/swiss-table-tennis-chat
 #   ./launch-new-claude-remote-control.sh --tui fullscreen
+#   ./launch-new-claude-remote-control.sh -d ~/repos/scoreTec/tasks --continue
+#   ./launch-new-claude-remote-control.sh --resume <session-id>
+#   ./launch-new-claude-remote-control.sh --session-id "$(uuidgen)" -s worker "Do the task"
+#   ./launch-new-claude-remote-control.sh --resume <session-id> --fork-session --session-id "$(uuidgen)"
 #   CLAUDE_WORK_DIR=/some/path ./launch-new-claude-remote-control.sh
 
 set -euo pipefail
 
 usage() {
-    sed -n '2,57p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,77p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 # --- Defaults ---
@@ -71,6 +91,10 @@ PROMPT=""
 PROMPT_SET=0
 DIR_OVERRIDE=""
 TUI_MODE="default"
+CONTINUE=0
+RESUME_VALUE=""
+SESSION_ID=""
+FORK_SESSION=0
 
 # --- Parse options (order-independent flags plus one positional prompt) ---
 while [ $# -gt 0 ]; do
@@ -80,6 +104,18 @@ while [ $# -gt 0 ]; do
         -d|--dir)    DIR_OVERRIDE="${2:-}"; shift 2 ;;
         -e|--effort) EFFORT="${2:-}"; shift 2 ;;
         -t|--tui)    TUI_MODE="${2:-}"; shift 2 ;;
+        -c|--continue) CONTINUE=1; shift ;;
+        -r|--resume)
+            if [ $# -lt 2 ] || [ -z "${2:-}" ]; then
+                echo "--resume requires a session id or search term" >&2; exit 2
+            fi
+            RESUME_VALUE="$2"; shift 2 ;;
+        --session-id)
+            if [ $# -lt 2 ] || [ -z "${2:-}" ]; then
+                echo "--session-id requires a UUID" >&2; exit 2
+            fi
+            SESSION_ID="$2"; shift 2 ;;
+        --fork-session) FORK_SESSION=1; shift ;;
         -p|--prompt) PROMPT="${2:-}"; PROMPT_SET=1; shift 2 ;;
         -h|--help)   usage; exit 0 ;;
         --)          shift
@@ -89,8 +125,41 @@ while [ $# -gt 0 ]; do
     esac
 done
 
+if [ "$CONTINUE" -eq 1 ] && [ -n "$RESUME_VALUE" ]; then
+    echo "--continue and --resume are mutually exclusive" >&2
+    exit 2
+fi
+
+# claude enforces these rules itself, but its error would vanish with the
+# detached screen, so check them here where the caller sees it.
+RESUMING=0
+if [ "$CONTINUE" -eq 1 ] || [ -n "$RESUME_VALUE" ]; then
+    RESUMING=1
+fi
+if [ "$FORK_SESSION" -eq 1 ] && [ "$RESUMING" -eq 0 ]; then
+    echo "--fork-session only applies with --continue or --resume" >&2
+    exit 2
+fi
+if [ -n "$SESSION_ID" ]; then
+    uuid_pattern='^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+    if ! [[ "$SESSION_ID" =~ $uuid_pattern ]]; then
+        echo "--session-id must be a valid UUID, got: $SESSION_ID" >&2
+        exit 2
+    fi
+    if [ "$RESUMING" -eq 1 ] && [ "$FORK_SESSION" -eq 0 ]; then
+        echo "--session-id with --continue or --resume also requires --fork-session" >&2
+        exit 2
+    fi
+fi
+
+# A continued or resumed conversation should pick up as it was, so the
+# "Wait for further instructions" default is only for brand-new sessions.
 if [ "$PROMPT_SET" -eq 0 ]; then
-    PROMPT="Wait for further instructions"
+    if [ "$RESUMING" -eq 1 ]; then
+        PROMPT=""
+    else
+        PROMPT="Wait for further instructions"
+    fi
 fi
 
 case "$TUI_MODE" in
@@ -181,6 +250,18 @@ else
     claude_json="$claude_home/.claude.json"
 fi
 
+# A requested session id must not already belong to a saved conversation;
+# that conversation should be continued with --resume instead.
+if [ -n "$SESSION_ID" ]; then
+    for transcript in "$claude_config_dir"/projects/*/"$SESSION_ID".jsonl; do
+        if [ -e "$transcript" ]; then
+            echo "--session-id $SESSION_ID already has a transcript at" \
+                 "$transcript; use --resume to continue it" >&2
+            exit 2
+        fi
+    done
+fi
+
 # Resolve work directory: --dir wins, then $CLAUDE_WORK_DIR, then the default.
 # Canonicalize so the path used as a key in .claude.json matches what
 # claude itself will use at startup.
@@ -248,7 +329,21 @@ CLAUDE_ARGS=( --remote-control --name "$RC_DISPLAY_NAME" \
 if [ -n "$MODEL_ID" ]; then
     CLAUDE_ARGS+=( --model "$MODEL_ID" )
 fi
-CLAUDE_ARGS+=( "$PROMPT" )
+if [ "$CONTINUE" -eq 1 ]; then
+    CLAUDE_ARGS+=( --continue )
+fi
+if [ -n "$RESUME_VALUE" ]; then
+    CLAUDE_ARGS+=( --resume "$RESUME_VALUE" )
+fi
+if [ "$FORK_SESSION" -eq 1 ]; then
+    CLAUDE_ARGS+=( --fork-session )
+fi
+if [ -n "$SESSION_ID" ]; then
+    CLAUDE_ARGS+=( --session-id "$SESSION_ID" )
+fi
+if [ -n "$PROMPT" ]; then
+    CLAUDE_ARGS+=( "$PROMPT" )
+fi
 
 # This script is often run by another Claude session (e.g. claude-boss),
 # which automatically sets CLAUDE_CODE_CHILD_SESSION=1 in the new Claude, which
@@ -297,7 +392,18 @@ echo "  Remote Control name: $RC_DISPLAY_NAME"
 echo "  Model:               ${MODEL_ID:-<account default>}"
 echo "  Effort level:        $EFFORT"
 echo "  Renderer:            $TUI_MODE"
-echo "  Initial prompt:      $PROMPT"
+if [ "$CONTINUE" -eq 1 ]; then
+    echo "  Conversation:        continuing the most recent one in this directory"
+elif [ -n "$RESUME_VALUE" ]; then
+    echo "  Conversation:        resuming $RESUME_VALUE"
+fi
+if [ "$FORK_SESSION" -eq 1 ]; then
+    echo "  Fork:                yes, into a new session id"
+fi
+if [ -n "$SESSION_ID" ]; then
+    echo "  Session id:          $SESSION_ID"
+fi
+echo "  Initial prompt:     ${PROMPT:-<none>}"
 echo "  Attach with:         screen -r $SCREEN_NAME"
 echo "  List screens:        screen -ls"
 echo "  Kill session:        screen -S $SCREEN_NAME -X quit"
