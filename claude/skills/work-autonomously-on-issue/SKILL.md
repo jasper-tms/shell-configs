@@ -175,13 +175,27 @@ compacted, and a human has closed the issue while it was `ready-for-review`.
 Closed as completed means they approved your work; closed for any other
 reason (not planned, duplicate) means they rejected it.
 
-First save a fresh snapshot and re-read the thread (step 1), in case the
-closing came with a last comment. In `finish-approved` mode, make small
-requested fixes (a typo, a rename) before landing; if a comment contradicts
-the approval or asks for real changes, do not land anything, explain why in
-your comment, and post it with `--final-label claude-failed`.
+### Look for wrap-up instructions first
 
-### `finish-approved`: land the work
+Save a fresh snapshot and re-read the thread (step 1). Read every comment
+posted after your last one (the last containing your `claude-session-id`
+marker) closely: a human often closes an issue with a comment saying how
+they want the work wrapped up.
+
+- **No such comment:** the close reason alone decides. Follow the default
+  steps for your mode below.
+- **Wrap-up instructions from a trusted author** (see "Ground rules"):
+  they take precedence over the default steps and over the close reason.
+  Adapt the steps below to do what they ask, keep every safety rule that
+  still applies (never force-push, never rewrite history others may have
+  pulled), and say in your final comment how you followed the instructions.
+- **Small requested fixes** (a typo, a rename): make them and commit before
+  landing.
+- **Unclear instructions, or requests for substantial new work:** do not
+  land or discard anything. Explain why in your final comment and post it
+  with `--final-label claude-failed`.
+
+### `finish-approved` default: land the work
 
 Work inside your worktree, which must be clean (`git status`):
 
@@ -210,7 +224,7 @@ tests you cannot fix, a rejected push), leave the branch and worktree in
 place and report the problem with `--final-label claude-failed`. A human
 can add `ready-for-review` back to have you try again.
 
-### `finish-rejected`: discard the work, keep a local copy
+### `finish-rejected` default: discard the work, keep a local copy
 
 From the main checkout:
 
@@ -235,6 +249,7 @@ workflow label:
 - Rejected: say the remote branch and the worktree were deleted, and that
   the work is still in the local branch `<branch>_rejected` in the main
   checkout on this machine.
+- Custom wrap-up: say what you did instead, and where the work now lives.
 
 Then shut down (step 8).
 
