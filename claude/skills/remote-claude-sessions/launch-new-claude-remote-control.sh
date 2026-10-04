@@ -62,6 +62,9 @@
 #   --fork-session         With --continue or --resume, branch into a new
 #                          session id instead of reusing the original
 #                          (claude --fork-session).
+#   --settings <file-or-json>
+#                          Extra settings for this session only, e.g. deny
+#                          rules (claude --settings).
 #   -h, --help             Show this help and exit.
 #
 # Examples:
@@ -79,7 +82,7 @@
 set -euo pipefail
 
 usage() {
-    sed -n '2,77p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,80p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 # --- Defaults ---
@@ -95,6 +98,7 @@ CONTINUE=0
 RESUME_VALUE=""
 SESSION_ID=""
 FORK_SESSION=0
+SETTINGS=""
 
 # --- Parse options (order-independent flags plus one positional prompt) ---
 while [ $# -gt 0 ]; do
@@ -116,6 +120,11 @@ while [ $# -gt 0 ]; do
             fi
             SESSION_ID="$2"; shift 2 ;;
         --fork-session) FORK_SESSION=1; shift ;;
+        --settings)
+            if [ $# -lt 2 ] || [ -z "${2:-}" ]; then
+                echo "--settings requires a file path or JSON" >&2; exit 2
+            fi
+            SETTINGS="$2"; shift 2 ;;
         -p|--prompt) PROMPT="${2:-}"; PROMPT_SET=1; shift 2 ;;
         -h|--help)   usage; exit 0 ;;
         --)          shift
@@ -341,6 +350,9 @@ fi
 if [ -n "$SESSION_ID" ]; then
     CLAUDE_ARGS+=( --session-id "$SESSION_ID" )
 fi
+if [ -n "$SETTINGS" ]; then
+    CLAUDE_ARGS+=( --settings "$SETTINGS" )
+fi
 if [ -n "$PROMPT" ]; then
     CLAUDE_ARGS+=( "$PROMPT" )
 fi
@@ -402,6 +414,9 @@ if [ "$FORK_SESSION" -eq 1 ]; then
 fi
 if [ -n "$SESSION_ID" ]; then
     echo "  Session id:          $SESSION_ID"
+fi
+if [ -n "$SETTINGS" ]; then
+    echo "  Extra settings:      $SETTINGS"
 fi
 echo "  Initial prompt:     ${PROMPT:-<none>}"
 echo "  Attach with:         screen -r $SCREEN_NAME"
