@@ -65,6 +65,9 @@
 #   --settings <file-or-json>
 #                          Extra settings for this session only, e.g. deny
 #                          rules (claude --settings).
+#   -a, --add-dir <path>   Give the session access to another directory,
+#                          and load the skills in its .claude/skills/
+#                          (claude --add-dir). Repeatable.
 #   -h, --help             Show this help and exit.
 #
 # Examples:
@@ -82,7 +85,7 @@
 set -euo pipefail
 
 usage() {
-    sed -n '2,80p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,/^$/p' "$0" | sed -e '/^$/d' -e 's/^# \{0,1\}//'
 }
 
 # --- Defaults ---
@@ -99,6 +102,7 @@ RESUME_VALUE=""
 SESSION_ID=""
 FORK_SESSION=0
 SETTINGS=""
+ADD_DIRS=()
 
 # --- Parse options (order-independent flags plus one positional prompt) ---
 while [ $# -gt 0 ]; do
@@ -125,6 +129,11 @@ while [ $# -gt 0 ]; do
                 echo "--settings requires a file path or JSON" >&2; exit 2
             fi
             SETTINGS="$2"; shift 2 ;;
+        -a|--add-dir)
+            if [ $# -lt 2 ] || [ -z "${2:-}" ]; then
+                echo "--add-dir requires a directory" >&2; exit 2
+            fi
+            ADD_DIRS+=( "$2" ); shift 2 ;;
         -p|--prompt) PROMPT="${2:-}"; PROMPT_SET=1; shift 2 ;;
         -h|--help)   usage; exit 0 ;;
         --)          shift
@@ -332,9 +341,13 @@ unset screen_major_version
 
 # Assemble the claude command. --model is only added when a model was
 # requested, so the default (no flag) behavior is unchanged.
-CLAUDE_ARGS=( --remote-control --name "$RC_DISPLAY_NAME" \
-              --permission-mode auto \
-              --effort "$EFFORT" )
+CLAUDE_ARGS=( --remote-control --name "$RC_DISPLAY_NAME" )
+# claude's --add-dir takes any number of values, so it must be followed by
+# another option, or it swallows the prompt as one more directory.
+for add_dir in "${ADD_DIRS[@]+"${ADD_DIRS[@]}"}"; do
+    CLAUDE_ARGS+=( --add-dir "$add_dir" )
+done
+CLAUDE_ARGS+=( --permission-mode auto --effort "$EFFORT" )
 if [ -n "$MODEL_ID" ]; then
     CLAUDE_ARGS+=( --model "$MODEL_ID" )
 fi
