@@ -6,6 +6,13 @@ fake=false
 crf=28
 metadata=true
 user_movflags=""
+# Color tags the user explicitly asked for, named override_<ffprobe field>.
+# Any tag not overridden is expected to be carried over from the input.
+override_color_space=""
+override_color_primaries=""
+override_color_transfer=""
+override_color_range=""
+user_video_filters=""
 while [ "$#" -gt 0 ]; do
     case "$1" in
         -f|--fake)
@@ -31,6 +38,22 @@ while [ "$#" -gt 0 ]; do
                 +*|-*) user_movflags="$user_movflags$2" ;;
                 *) user_movflags="$user_movflags+$2" ;;
             esac
+            shift
+            shift
+            ;;
+        -colorspace|-color_primaries|-color_trc|-color_range)
+            case "$1" in
+                -colorspace) override_color_space="$2" ;;
+                -color_primaries) override_color_primaries="$2" ;;
+                -color_trc) override_color_transfer="$2" ;;
+                -color_range) override_color_range="$2" ;;
+            esac
+            shift
+            shift
+            ;;
+        -vf|-filter:v)
+            # Collected separately so the color overrides can be appended to it
+            user_video_filters="$2"
             shift
             shift
             ;;
@@ -71,24 +94,68 @@ if $metadata; then
 fi
 movflags="$movflags$user_movflags"
 
+# Color tag overrides are applied with the setparams filter, because ffmpeg 9
+# ignores -color_primaries and -color_trc as output options, and input options
+# don't override tags the input file already has. setparams only relabels the
+# frames; it does not convert their colors.
+setparams=""
+[ -n "$override_color_space" ] && setparams="$setparams:colorspace=$override_color_space"
+[ -n "$override_color_primaries" ] && setparams="$setparams:color_primaries=$override_color_primaries"
+[ -n "$override_color_transfer" ] && setparams="$setparams:color_trc=$override_color_transfer"
+[ -n "$override_color_range" ] && setparams="$setparams:range=$override_color_range"
+video_filters="$user_video_filters"
+if [ -n "$setparams" ]; then
+    video_filters="${video_filters:+$video_filters,}setparams=${setparams#:}"
+fi
+filter_args=()
+if [ -n "$video_filters" ]; then
+    filter_args=(-vf "$video_filters")
+fi
+
 if $fake; then
     echo ffmpeg -i "$inputname" \
                 -c:v libx265 \
                 -tag:v hvc1 \
-                -colorspace bt2020nc -color_primaries bt2020 -color_trc arib-std-b67 \
                 -crf $crf \
                 $metadata_args \
                 -movflags "$movflags" \
+                "${filter_args[@]}" \
                 $args \
                 "$outputname"
     exit 0
 fi
+# Color tags (e.g. the HDR tags bt2020nc/bt2020/arib-std-b67 on iPhone
+# videos) are carried over from the input by ffmpeg automatically, as long
+# as ffmpeg is version 5 or newer. Older versions dropped them, which made
+# iPhone HDR videos look washed out. The check after encoding catches that.
 ffmpeg -i "$inputname" \
        -c:v libx265 \
        -tag:v hvc1 \
-       -colorspace bt2020nc -color_primaries bt2020 -color_trc arib-std-b67 \
        -crf $crf \
        $metadata_args \
        -movflags "$movflags" \
+       "${filter_args[@]}" \
        $args \
-       "$outputname"
+       "$outputname" || exit $?
+
+# Verify that each color tag of the output matches the input's, or the value
+# the user explicitly asked for. Tags the input lacks ("unknown") aren't
+# checked, since the encoder is free to fill in standard defaults for them.
+probe_color_tag () {
+    ffprobe -v error -select_streams v:0 -show_entries "stream=$1" \
+        -of default=noprint_wrappers=1:nokey=1 "$2"
+}
+mismatch=false
+for tag in color_space color_primaries color_transfer color_range; do
+    override_variable="override_$tag"
+    expected="${!override_variable:-$(probe_color_tag "$tag" "$inputname")}"
+    actual="$(probe_color_tag "$tag" "$outputname")"
+    if [ "$expected" != "unknown" ] && [ "$expected" != "$actual" ]; then
+        >&2 echo "WARNING: $tag of $outputname is \"$actual\" but should be \"$expected\""
+        mismatch=true
+    fi
+done
+if $mismatch; then
+    >&2 echo "WARNING: Color tags were not preserved, so colors may display incorrectly."
+    exit 1
+fi
