@@ -89,7 +89,7 @@ CLAUDE_JSON_PATH="${CLAUDE_JSON_PATH:-${CLAUDE_HOME:-$HOME}/.claude.json}"
 
 # A distinct screen name (parameterized by version/model so parallel or
 # repeated captures don't clobber each other's sessions) rather than the
-# claude-remote-N scheme used by launch-new-claude-remote-control.sh: this
+# claude-N scheme used by launch-new-claude-remote-control.sh: this
 # session is a throwaway capture process, not a member of that persistent
 # fleet.
 SCREEN_NAME="claude-temp-system-prompt-${RESOLVED_VERSION}-${MODEL_SHORT}"

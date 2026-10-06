@@ -8,12 +8,13 @@
 #   in the Claude config dir's .claude.json so the trust prompt never appears.
 #   See the claude-home resolution block below for how that dir is located.
 #
-# Session naming (auto-numbered from existing claude-remote-N screens):
-#   - screen name:     claude-remote-N
-#   - --name (RC UI):  <prefix>-N[-<suffix>], where <prefix> is
+# Session naming (auto-numbered from existing claude-N screens):
+#   - screen name:     claude-N[_<suffix>]
+#   - --name (RC UI):  <prefix>-N[_<suffix>], where <prefix> is
 #                      machine-dependent (see the prefix-detection block
 #                      below) and <suffix> comes from --suffix, or is
-#                      derived from --model (e.g. rpi-2-fable).
+#                      derived from --model (e.g. claude-2_fable and
+#                      rpi-2_fable).
 #
 # Usage:
 #   ./launch-new-claude-remote-control.sh [options] [initial-prompt]
@@ -26,13 +27,16 @@
 #                            sonnet  -> claude-sonnet-5
 #                            haiku   -> claude-haiku-4-5-20251001
 #                          When set, a short label is appended to the
-#                          Remote Control display name (e.g. rpi-2-fable),
-#                          unless overridden by --suffix. With no --model,
-#                          the account default model is used and no suffix
-#                          is added.
-#   -s, --suffix <text>    Explicit suffix for the Remote Control display
-#                          name, appended after the auto-numbered name.
-#                          Overrides any model-derived suffix.
+#                          screen and Remote Control display names (e.g.
+#                          rpi-2_fable), unless overridden by --suffix.
+#                          With no --model, the account default model is
+#                          used and no suffix is added.
+#   -s, --suffix <text>    Explicit suffix for the screen and Remote Control
+#                          display names, appended after the auto-numbered
+#                          name and an underscore. Letters, digits, `-`, `_`
+#                          and `#` are kept (case too); any other run of
+#                          characters becomes `-`. Overrides any
+#                          model-derived suffix.
 #   -d, --dir    <path>    Working directory for the session. Overrides
 #                          $CLAUDE_WORK_DIR. Defaults to
 #                          <claude config dir>/remote-sessions.
@@ -221,17 +225,18 @@ case "$MODEL_INPUT" in
         ;;
 esac
 
-# A model-derived label becomes the display-name suffix unless one was
+# A model-derived label becomes the name suffix unless one was
 # given explicitly with --suffix.
 if [ "$SUFFIX_EXPLICIT" -eq 0 ] && [ -n "$MODEL_LABEL" ]; then
     NAME_SUFFIX="$MODEL_LABEL"
 fi
 
-# Sanitize the suffix so it is safe inside a screen/RC display name.
+# Sanitize the suffix so it is safe inside a screen/RC display name. A `/`
+# breaks screen names (screen reads `a/b` as <account>/<name>), and a `$`
+# would be expanded by `screen -X stuff`.
 if [ -n "$NAME_SUFFIX" ]; then
     NAME_SUFFIX="$(printf '%s' "$NAME_SUFFIX" \
-        | tr '[:upper:]' '[:lower:]' \
-        | sed -e 's/[^a-z0-9]\{1,\}/-/g' -e 's/^-//' -e 's/-$//')"
+        | sed -e 's/[^A-Za-z0-9#_-]\{1,\}/-/g' -e 's/^-//' -e 's/-$//')"
 fi
 
 # Pick the Remote Control display-name prefix for this machine:
@@ -305,10 +310,10 @@ with open(p, "w") as f:
 EOF
 
 # Auto-number the session: pick the lowest unused N among existing
-# claude-remote-N screens, so killed sessions free up their numbers.
+# claude-N[_<suffix>] screens, so killed sessions free up their numbers.
 # (Sorted list instead of an associative array — works on Bash 3.2 / macOS.)
 existing_ns="$(screen -ls 2>/dev/null \
-    | grep -oE 'claude-remote-[0-9]+' \
+    | grep -oE '\.claude-[0-9]+' \
     | sed 's/.*-//' \
     | sort -n -u || true)"
 
@@ -316,10 +321,11 @@ N=1
 while printf '%s\n' "$existing_ns" | grep -qx "$N"; do
     N=$(( N + 1 ))
 done
-SCREEN_NAME="claude-remote-${N}"
+SCREEN_NAME="claude-${N}"
 RC_DISPLAY_NAME="${PREFIX}-${N}"
 if [ -n "$NAME_SUFFIX" ]; then
-    RC_DISPLAY_NAME="${RC_DISPLAY_NAME}-${NAME_SUFFIX}"
+    SCREEN_NAME="${SCREEN_NAME}_${NAME_SUFFIX}"
+    RC_DISPLAY_NAME="${RC_DISPLAY_NAME}_${NAME_SUFFIX}"
 fi
 
 cd "$WORK_DIR"

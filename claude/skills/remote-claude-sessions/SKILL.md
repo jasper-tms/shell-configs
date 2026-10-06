@@ -9,11 +9,12 @@ Run
 `~/.claude/skills/remote-claude-sessions/launch-new-claude-remote-control.sh`
 via the Bash tool. The script:
 
-- Auto-numbers the session: screen `claude-remote-N`, RC display name
+- Auto-numbers the session: screen `claude-N`, RC display name
   `<prefix>-N`, where N is the lowest unused number among existing
-  `claude-remote-N` screens. `<prefix>` is machine-dependent, chosen by a
-  `hostname -s` case block in the script (`macbook` on this MacBook, `rpi` on
-  the Pi); unrecognized machines fall back to the lowercased short hostname.
+  `claude-N` screens (suffixed or not). `<prefix>` is machine-dependent,
+  chosen by a `hostname -s` case block in the script (`macbook` on this
+  MacBook, `rpi` on the Pi); unrecognized machines fall back to the
+  lowercased short hostname.
 - Uses `$CLAUDE_WORK_DIR` as the session's working directory, falling back to
   `~/.claude/remote-sessions/`. The directory is created if missing, and
   workspace trust is pre-accepted for it in `~/.claude.json`.
@@ -42,8 +43,9 @@ continue (the script has more options; see `--help`):
 To know a session's id up front (e.g. to `--resume` it later), pass
 `--session-id <uuid>` (generate one with `uuidgen`). Combining it with
 `--continue`/`--resume` also requires `--fork-session`, which branches the
-conversation into the new id. To tag the Remote Control display name, use
-`--suffix` (`-s worker` gives `rpi-N-worker`).
+conversation into the new id. To tag the session, use `--suffix`, which goes
+after an underscore in both names (`-s worker` gives screen `claude-N_worker`
+and RC display name `rpi-N_worker`). Address such a screen by its full name.
 
 ## Required: verify the new session before reporting success
 
@@ -56,7 +58,7 @@ should be pre-accepted, but verify it didn't appear anyway.
    its splash then the UI):
 
    ```
-   sleep 6; screen -S claude-remote-N -X hardcopy /tmp/check-N.txt; sleep 1; LC_ALL=C tr -cd '[:print:]\n' < /tmp/check-N.txt | sed '/^[[:space:]]*$/d'
+   sleep 6; screen -S claude-N -X hardcopy /tmp/check-N.txt; sleep 1; LC_ALL=C tr -cd '[:print:]\n' < /tmp/check-N.txt | sed '/^[[:space:]]*$/d'
    ```
 
    Always strip with `LC_ALL=C tr` first — never run `sed`/`grep` on the raw
@@ -77,7 +79,7 @@ should be pre-accepted, but verify it didn't appear anyway.
 Option 1 ("Yes, I trust this folder") is pre-selected. Send Enter using `\r`
 (carriage return — `\n` does NOT work):
 
-    screen -S claude-remote-N -X stuff $'\r'
+    screen -S claude-N -X stuff $'\r'
 
 Then wait ~3 seconds, recapture the screen, and confirm "Remote Control active"
 appears before reporting success.
@@ -93,8 +95,9 @@ to you automatically** as a `<cross-session-message>` — you don't have to
 
 1. Find the target with the `ListAgents` tool. A live launcher session appears
    as a peer addressed by its **RC display name** (e.g. `rpi-3`), shown as
-   `interactive` and either `idle` or `busy`. The RC name's number matches the
-   screen name: `rpi-3` ⇄ screen `claude-remote-3`.
+   `interactive` and either `idle` or `busy`. The RC name matches the screen
+   name: `rpi-3` ⇄ screen `claude-3`, `rpi-4_worker` ⇄ screen
+   `claude-4_worker`.
 
 2. Send it:
 
@@ -139,9 +142,9 @@ the Enter as **two separate `stuff` calls** with a short pause between, so the
 Enter arrives as a distinct keypress:
 
 ```
-screen -S claude-remote-N -X stuff 'your long message here'
+screen -S claude-N -X stuff 'your long message here'
 sleep 1
-screen -S claude-remote-N -X stuff $'\r'
+screen -S claude-N -X stuff $'\r'
 ```
 
 This is the same split-call shape the `!` shell-mode workaround below uses
@@ -157,9 +160,9 @@ For a longer message, split it into under-750-byte chunks, capturing the screen
 after each to confirm it landed, then send the Enter as its own call:
 
 ```
-screen -S claude-remote-N -X stuff 'chunk 1 ...'
-screen -S claude-remote-N -X stuff 'chunk 2 ...'
-screen -S claude-remote-N -X stuff $'\r'
+screen -S claude-N -X stuff 'chunk 1 ...'
+screen -S claude-N -X stuff 'chunk 2 ...'
+screen -S claude-N -X stuff $'\r'
 ```
 
 Check the input box is empty first: chunks append to whatever is staged there,
@@ -184,11 +187,11 @@ start with `!`. Send the `!`, the command text, and the Enter as **three
 separate `stuff` calls**, pausing between each so the UI can switch modes:
 
 ```
-screen -S claude-remote-N -X stuff '!'
+screen -S claude-N -X stuff '!'
 sleep 1
-screen -S claude-remote-N -X stuff 'your command here'
+screen -S claude-N -X stuff 'your command here'
 sleep 1
-screen -S claude-remote-N -X stuff $'\r'
+screen -S claude-N -X stuff $'\r'
 ```
 
 Verify by capturing the screen: a genuine shell-mode run echoes the command as
@@ -201,14 +204,16 @@ Two complementary views:
 - `ListAgents` (tool) shows which sessions are **live and messageable** right
   now, by RC display name, with `idle`/`busy` state — this is what you need
   before a `SendMessage`. It also lists stale offline rows; ignore those.
-- `screen -ls claude-remote-` lists the **local screens** (including ones not
-  reachable as peers, e.g. still on the trust dialog). This command exits 1 when
-  no screens match that prefix.
+- `screen -ls | grep -E '\.claude-[0-9]+'` lists the **local screens**
+  (including ones not reachable as peers, e.g. still on the trust dialog).
 
 There might be other screens on the machine which _would_ be shown by a plain
 `screen -ls` command, but you may _only_ interact with screens named
-`claude-remote-*` (or `claude-boss`, which drives the fleet rather than
-belonging to it).
+`claude-N` or `claude-N_<suffix>` (or `claude-boss`, which drives the fleet
+rather than belonging to it). Screens suffixed
+`_github-<owner>-<repository>#<issue>` are unattended issue agents started by
+the autonomous-issue-agents orchestrator; leave them alone unless the user
+asks about them.
 
 ## Custom requests
 
