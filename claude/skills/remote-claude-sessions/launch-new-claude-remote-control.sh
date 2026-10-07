@@ -8,6 +8,12 @@
 #   in the Claude config dir's .claude.json so the trust prompt never appears.
 #   See the claude-home resolution block below for how that dir is located.
 #
+# Account (Claude config dir):
+#   --config-dir <path>, else chosen from the working directory by
+#   claude_config_dir_for_directory in shell-configs' aliases/claude.sh
+#   (e.g. scoreTec paths use the scoreTec Team seat). An inherited
+#   $CLAUDE_CONFIG_DIR is ignored, unless aliases/claude.sh can't be found.
+#
 # Session naming (auto-numbered from existing claude-N screens):
 #   - screen name:     claude-N[_<suffix>]
 #   - --name (RC UI):  <prefix>-N[_<suffix>], where <prefix> is
@@ -40,6 +46,8 @@
 #   -d, --dir    <path>    Working directory for the session. Overrides
 #                          $CLAUDE_WORK_DIR. Defaults to
 #                          <claude config dir>/remote-sessions.
+#   --config-dir <path>    Claude config dir (account) to run under, instead
+#                          of the one chosen from the working directory.
 #   -e, --effort <level>   Reasoning effort (default: high).
 #   -p, --prompt <text>    Initial prompt. May also be given as a trailing
 #                          positional argument. Defaults to
@@ -100,6 +108,7 @@ EFFORT="high"
 PROMPT=""
 PROMPT_SET=0
 DIR_OVERRIDE=""
+CONFIG_DIR_OVERRIDE=""
 TUI_MODE="default"
 CONTINUE=0
 RESUME_VALUE=""
@@ -114,6 +123,11 @@ while [ $# -gt 0 ]; do
         -m|--model)  MODEL_INPUT="${2:-}"; shift 2 ;;
         -s|--suffix) NAME_SUFFIX="${2:-}"; SUFFIX_EXPLICIT=1; shift 2 ;;
         -d|--dir)    DIR_OVERRIDE="${2:-}"; shift 2 ;;
+        --config-dir)
+            if [ $# -lt 2 ] || [ -z "${2:-}" ]; then
+                echo "--config-dir requires a directory" >&2; exit 2
+            fi
+            CONFIG_DIR_OVERRIDE="$2"; shift 2 ;;
         -e|--effort) EFFORT="${2:-}"; shift 2 ;;
         -t|--tui)    TUI_MODE="${2:-}"; shift 2 ;;
         -c|--continue) CONTINUE=1; shift ;;
@@ -262,6 +276,35 @@ fi
 claude_home="${CLAUDE_HOME:-$HOME}"
 export HOME="$claude_home"
 
+# Resolve work directory: --dir wins, then $CLAUDE_WORK_DIR, then the default
+# under the inherited config dir. Canonicalize so the path used as a key in
+# .claude.json matches what claude itself will use at startup.
+WORK_DIR_RAW="${DIR_OVERRIDE:-${CLAUDE_WORK_DIR:-${CLAUDE_CONFIG_DIR:-$claude_home/.claude}/remote-sessions}}"
+mkdir -p "$WORK_DIR_RAW"
+WORK_DIR="$(cd "$WORK_DIR_RAW" && pwd -P)"
+
+# Pick the account from the working directory, using the same rule as the
+# interactive `claude` shell function. Exported (or unset) so the claude we
+# screen-launch below inherits it.
+claude_aliases_file="${SHELL_CONFIGS_DIR:-}/aliases/claude.sh"
+if [ -n "$CONFIG_DIR_OVERRIDE" ]; then
+    # The default dir must be selected by leaving CLAUDE_CONFIG_DIR unset, since
+    # setting it moves .claude.json from beside the dir to inside it.
+    if [ "$(cd "$CONFIG_DIR_OVERRIDE" && pwd -P)" = "$(cd "$claude_home/.claude" && pwd -P)" ]; then
+        unset CLAUDE_CONFIG_DIR
+    else
+        export CLAUDE_CONFIG_DIR="$CONFIG_DIR_OVERRIDE"
+    fi
+elif [ -n "${SHELL_CONFIGS_DIR:-}" ] && [ -f "$claude_aliases_file" ]; then
+    source "$claude_aliases_file"
+    directory_config_dir="$(claude_config_dir_for_directory "$WORK_DIR")"
+    if [ -n "$directory_config_dir" ]; then
+        export CLAUDE_CONFIG_DIR="$directory_config_dir"
+    else
+        unset CLAUDE_CONFIG_DIR
+    fi
+fi
+
 # .claude.json normally sits *beside* the config dir, but claude moves it
 # *inside* when $CLAUDE_CONFIG_DIR is set. Mirror both so we write the trust
 # setting to the file claude will actually read.
@@ -284,13 +327,6 @@ if [ -n "$SESSION_ID" ]; then
         fi
     done
 fi
-
-# Resolve work directory: --dir wins, then $CLAUDE_WORK_DIR, then the default.
-# Canonicalize so the path used as a key in .claude.json matches what
-# claude itself will use at startup.
-WORK_DIR_RAW="${DIR_OVERRIDE:-${CLAUDE_WORK_DIR:-$claude_config_dir/remote-sessions}}"
-mkdir -p "$WORK_DIR_RAW"
-WORK_DIR="$(cd "$WORK_DIR_RAW" && pwd -P)"
 
 # Ensure .claude.json marks this directory as trusted.
 CLAUDE_JSON="$claude_json" WORK_DIR="$WORK_DIR" python3 <<'EOF'
@@ -420,6 +456,7 @@ screen -dmS "$SCREEN_NAME" env CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1 \
 echo "Launched detached screen: $SCREEN_NAME"
 echo "  Working directory:   $WORK_DIR"
 echo "  Remote Control name: $RC_DISPLAY_NAME"
+echo "  Claude config dir:   $claude_config_dir"
 echo "  Model:               ${MODEL_ID:-<account default>}"
 echo "  Effort level:        $EFFORT"
 echo "  Renderer:            $TUI_MODE"

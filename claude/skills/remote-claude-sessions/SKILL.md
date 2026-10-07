@@ -18,6 +18,9 @@ via the Bash tool. The script:
 - Uses `$CLAUDE_WORK_DIR` as the session's working directory, falling back to
   `~/.claude/remote-sessions/`. The directory is created if missing, and
   workspace trust is pre-accepted for it in `~/.claude.json`.
+- Picks the account from the working directory, like the `claude` shell
+  function does (scoreTec paths use the scoreTec Team seat; the status line
+  shows which). Override with `--config-dir <path>`.
 - Passes `--permission-mode auto` so the new session starts in Auto Mode.
 - Defaults the initial prompt to "Wait for further instructions".
 
