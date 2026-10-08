@@ -1,6 +1,7 @@
 # Skill index for `shell-configs/claude/skills/`
 Each line below lists a single skill as `- <skill-name>: <skill-description>`. Each skill can be found alongside this INDEX.md file at `<skill-name>/SKILL.md`
 - accurate-video-frame-indexing: How to map between video frames and timestamps with GUARANTEED accuracy (frame-accurate annotation, seeking, extraction) in Python (npimage) or a browser/JS web app. Use whenever code must know exactly which frame is which, e.g. "annotate this frame", "seek to frame N", "extract frames a..b".
+- commenting-on-issues: Load before drafting, posting, or editing a comment on a github issue
 - find-missing-skills: Immediately load this skill when asked to load or edit a skill whose name or description is not in your available-skills list – it most likely exists and `~/.claude/skills/_SKILL_LISTING.md` can tell you where it is. Also load when asked questions like "Do we have a skill that covers X?" or on any mention of "skill listing".
 - finishing-tasks-in-repos: Load after completing any work that created or changed files in any git repo, to learn how to write the commit script the user expects. Load even for tiny edits to git-tracked code, docs, configs, or skill – your job isn't done until you do.
 - fix-mouse-movements-appearing-as-text-in-terminal: Moving the mouse over a terminal window injects junk like `[<35;60;12M` into the prompt. Fix stuck xterm mouse reporting (common after an ssh/TUI connection drop). `reset` does not fix it on macOS.
