@@ -1,0 +1,9 @@
+# GNU screen settings. Symlink to ~/.screenrc:
+#   ln -s ~/repos/jasper-tms/shell-configs/screenrc ~/.screenrc
+
+# Scrollback lines per window (screen's default is only 100, about two
+# screenfuls). Screen allocates the whole buffer up front when a window opens,
+# roughly 4-5 bytes per cell (lines x columns), so 50,000 lines costs about
+# 25 MB per window at typical widths. It lives only in memory and is freed
+# when the window closes; nothing is written to disk unless logging is on.
+defscrollback 50000
