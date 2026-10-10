@@ -25,7 +25,7 @@ claude_config_dir_for_directory() {
 claude() {
     local config_directory
     config_directory=$(claude_config_dir_for_directory "$PWD")
-    if [ -z "$CLAUDE_CONFIG_DIR" ] && [ -n "$config_directory" ]; then
+    if [ -z "${CLAUDE_CONFIG_DIR:-}" ] && [ -n "$config_directory" ]; then
         echo "Using scoreTec's Claude Team seat" >&2
         CLAUDE_CONFIG_DIR="$config_directory" command claude "$@"
     else
