@@ -65,11 +65,12 @@ sections) applies to every new skill.
    file. Information (scripts, docs, other text assets) that SHOULD be added
    into context by default every time the skill is used should go directly into
    SKILL.md.
-2. Keep the description short and to the point, on one line (not
-   hard-wrapped) - all skill descriptions always get loaded into context, so
-   token bloat is real as number of skills grows.
-3. Hard-wrap the SKILL.md body after 79 characters. Prefer bulleted lists to
-   tables.
+2. Keep the description short and focused on the loading conditions ("Load
+   when..."), and on one line (not hard-wrapped).
+3. Hard-wrap the SKILL.md body after 79 characters. Strongly prefer bulleted
+   lists to tables. Do not use double asterisks to bold for emphasis
+   mid-sentence, instead only use to emphasize the starting phrase or sentence
+   of a new section, and even then, rarely.
 4. Symlink to a Claude-auto-loading folder:
    - After you make a skill in `jasper-tms/shell-configs`, symlink it into
      `~/.claude/skills/` so it becomes visible to _all_ future agents.
@@ -114,7 +115,7 @@ Either way, then try asking a new subagent. If the subagent saw the skill on
 the first try, just proceed without reloading at all.
 
 Once we confirm that a subagent can see the new skill, test and iterate on both
-the skill's **discovery** and its **content**:
+the skill's discovery and its content:
 1. **Discovery (does the `description` trigger the skill?)** — Give the
    subagent a natural task or question that *should* trigger the skill, WITHOUT
    naming the skill or pointing at its file. Verify the subagent chooses to
@@ -133,7 +134,7 @@ to use the skill by name if you specifically want to test content in
 isolation — but know that doing so bypasses (and therefore doesn't test)
 discovery.
 
-If there was **any** suboptimality in the subagent's behavior, refine the skill
+If there was any suboptimality in the subagent's behavior, refine the skill
 file(s) to be more helpful and idiot-proof, then launch a new subagent to test
 the updated skill. Iterate until satisfied.
 
@@ -147,12 +148,8 @@ stays quiet in the wrong ones.
 
 The procedure for the fixture's format, the rules for choosing good prompts,
 and how to run and score them from subagent transcripts lives in a companion
-skill, **test-skill-descriptions**. It is deliberately NOT globally
-registered - keeping its description out of every agent's context - so you
-cannot load it with the Skill tool; read its `SKILL.md` directly. It sits
-next to this skill in the same real directory, so resolve this skill's own
-base directory to its real path (following the symlink) and read the sibling
-file:
+skill, `test-skill-descriptions`. Read its `SKILL.md` directly (not using the
+Skill tool) using:
 
 ```bash
 cat "$(dirname "$(readlink -f ~/.claude/skills/make-new-skill)")/test-skill-descriptions/SKILL.md"
