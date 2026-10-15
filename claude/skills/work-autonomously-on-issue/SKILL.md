@@ -111,10 +111,15 @@ them to push and post it, instead of writing the report folder.
    ```
 
 3. **Create a worktree** following the `parallel-development` skill (load
-   it), but branch off `origin/<base branch>` after a `git fetch origin`,
-   instead of that skill's choice between `main` and `dev`. If the base
-   branch does not exist on `origin`, stop and report that (step 6, status
-   `failed`). Name the branch `<one-to-five-word-description>-issue-<N>`;
+   it), but branch off the base branch instead of that skill's choice
+   between `main` and `dev`. First bring the main checkout's base branch up
+   to date with `origin`, fast-forward only: `git pull --ff-only origin
+   <base branch>` if it is the checked-out branch, otherwise `git fetch
+   origin <base branch>:<base branch>`. If that fails (local commits, or
+   uncommitted changes in the way), branch off `origin/<base branch>`
+   instead and mention it in your report. If the base branch does not exist
+   on `origin`, stop and report that (step 6, status `failed`). Name the
+   branch `<one-to-five-word-description>-issue-<N>`;
    if the issue lives in a different repository from the code, use
    `<description>-<issue-repo>-issue-<N>` instead. Skip that skill's
    `/name` reminder and its whole "Finishing" section: the orchestrator
@@ -225,14 +230,15 @@ they want the work wrapped up.
 
 Work inside your worktree, which must be clean (`git status`):
 
-1. `git fetch origin`, then `git rebase origin/<base branch>`. Resolve
-   conflicts yourself, keeping both sides' intent.
+1. Update the base branch as in step 3, then rebase onto it (onto
+   `origin/<base branch>` if the update failed). Resolve conflicts
+   yourself, keeping both sides' intent.
 2. Run the tests, linters or build again, and fix anything the rebase broke.
 3. Write your report (step 6) with status `done`. After you exit, the
    orchestrator fast-forwards the base branch to your branch (never
    forcing), then deletes the remote branch, the worktree, and the local
-   branch. Do none of that yourself, and leave the main checkout's own
-   branches and files alone, even if they are behind.
+   branch. Do none of that yourself, and apart from updating the base
+   branch, leave the main checkout's own branches and files alone.
 
 If anything blocks landing (conflicts you cannot resolve with confidence,
 tests you cannot fix), report the problem with status `failed`, leaving the
