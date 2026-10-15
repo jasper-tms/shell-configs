@@ -12,24 +12,27 @@ from the workflow looks the same and carries the hidden session ID marker
 that later resumes rely on. Finally, the orchestrator's claim comment for
 this session (if any) is deleted.
 
-Agents must also pass the snapshot of the issue thread they saved when they
-started working. If the thread changed since (new, edited, or deleted
-comments, or an edited title or body), nothing is posted: the changes are
-printed and the script exits with code 3, so the agent can decide whether
-they affect the work before trying again with a fresh snapshot.
+Agents save a snapshot of the issue thread when they start working, and
+check it before writing their report. With `--snapshot`, if the thread
+changed since (new, edited, or deleted comments, or an edited title or
+body), nothing is posted: the changes are printed and the script exits with
+code 3. Without a message file, `--snapshot` only runs that check.
+
+Only the orchestrator posts. Inside a workflow session (where
+$AUTONOMOUS_ISSUE_SESSION_ID is set) the script refuses to post: the agent
+writes its message into its report folder, and the orchestrator posts it
+after pushing what the report asks for.
 
 Usage:
     post-comment.py <issue-url> --save-snapshot <snapshot-file>
-    post-comment.py <issue-url> <message-file> --snapshot <snapshot-file>
-        [--author agent|orchestrator] [--final-label <label>|none]
-        [--session-id <uuid>]
+    post-comment.py <issue-url> --snapshot <snapshot-file>
+    post-comment.py <issue-url> <message-file> --session-id <uuid>
+        [--snapshot <snapshot-file>] [--author agent|orchestrator]
+        [--final-label <label>|none]
 
 `--final-label none` removes every workflow label, for the final comment on
-a closed issue.
-
-The session ID defaults to $AUTONOMOUS_ISSUE_SESSION_ID and the device name
-to $AUTONOMOUS_ISSUE_DEVICE_NAME, both set by the orchestrator when it
-launches a session.
+a closed issue. The device name comes from $AUTONOMOUS_ISSUE_DEVICE_NAME,
+set by the orchestrator.
 """
 import argparse
 import json
@@ -105,8 +108,7 @@ def main() -> None:
     parser.add_argument('--author', choices=HEADERS, default='agent')
     parser.add_argument('--final-label', default='ready-for-review',
                         choices=[*WORKFLOW_LABELS, 'none'])
-    parser.add_argument('--session-id',
-                        default=os.environ.get('AUTONOMOUS_ISSUE_SESSION_ID'))
+    parser.add_argument('--session-id')
     arguments = parser.parse_args()
 
     match = re.fullmatch(r'https://github\.com/([^/]+/[^/]+)/issues/(\d+)/?',
@@ -122,15 +124,16 @@ def main() -> None:
               f'{arguments.save_snapshot}')
         return
 
-    if arguments.message_file is None:
-        parser.error('a message file is required unless --save-snapshot is '
-                     'given')
-    if not arguments.session_id:
-        sys.exit('No session ID: pass --session-id or set '
-                 'AUTONOMOUS_ISSUE_SESSION_ID')
-    if arguments.author == 'agent' and not arguments.snapshot:
-        sys.exit('Agents must pass --snapshot with the snapshot saved (with '
-                 '--save-snapshot) when they started working')
+    if arguments.message_file is None and not arguments.snapshot:
+        parser.error('a message file is required unless --save-snapshot or '
+                     '--snapshot is given')
+    if arguments.message_file is not None:
+        if os.environ.get('AUTONOMOUS_ISSUE_SESSION_ID'):
+            sys.exit('Workflow sessions do not post: write your report into '
+                     '$AUTONOMOUS_ISSUE_REPORT_DIR and the orchestrator '
+                     'posts it after you exit')
+        if not arguments.session_id:
+            parser.error('--session-id is required to post')
     if arguments.snapshot:
         changes = describe_changes(
             json.loads(arguments.snapshot.read_text()),
@@ -139,10 +142,13 @@ def main() -> None:
             print('Nothing was posted: the issue thread changed since the '
                   'snapshot was saved.\n')
             print('\n\n'.join(changes))
-            print('\nIf any of this affects the task, save a fresh snapshot, '
-                  'address it, and try again. Otherwise save a fresh snapshot '
-                  'and post again.')
+            print('\nIf any of this affects the task, save a fresh snapshot '
+                  'and address it. Otherwise just save a fresh snapshot.')
             sys.exit(THREAD_CHANGED_EXIT_CODE)
+        if arguments.message_file is None:
+            print('The issue thread has not changed since the snapshot was '
+                  'saved.')
+            return
 
     device = (os.environ.get('AUTONOMOUS_ISSUE_DEVICE_NAME')
               or socket.gethostname().split('.')[0].lower())
