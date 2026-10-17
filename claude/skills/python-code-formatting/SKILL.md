@@ -19,6 +19,15 @@ instructions for a uv shebang instead.
   avoid needing to escape the apostrophe.
 
 
+## Imports
+Import modules rather than the names inside them, so call sites name the
+module: `from courtfinder import visualize`, then
+`visualize.intermediate_frames(...)`, not
+`from courtfinder.visualize import intermediate_frames`. Name functions to
+read well after their module's name. Alias a module whose name collides with
+a common variable name (`from courtfinder import model as court_model`).
+
+
 ## Helper functions
 Don't proliferate small named helpers. Before writing one, reach for an existing
 utility (e.g. in a `utils` module) that already does the job. Then place logic by
