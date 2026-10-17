@@ -9,8 +9,10 @@
 #   - not a git push at all      ->  stay silent, let the normal flow proceed
 #
 # "Headless" means a launcher exported CLAUDE_HEADLESS=1 (e.g. the tidy-repos
-# cron run.sh): there is no user to answer an "ask", so a would-be ask becomes a
-# hard deny rather than a tool call that hangs on an unanswerable prompt.
+# cron run.sh), or the push command itself is prefixed with CLAUDE_HEADLESS=1
+# (an agent that knows nobody may be watching): there is no user to answer an
+# "ask", so a would-be ask becomes a hard deny rather than a tool call that
+# hangs on an unanswerable prompt.
 #
 # A push with no refspec (bare `git push`, or `git push <remote>`) has an
 # implicit target, so the hook asks git itself what would be pushed: it resolves
@@ -113,9 +115,11 @@ implicit_destination_status() {
     fi
 }
 
-# Analyze one command segment. Prints "push <force> <protected> <unresolved>" if
-# the segment is a `git push`, otherwise "nopush". protected=1 -> deny;
-# unresolved=1 -> ask (implicit target we could not pin down).
+# Analyze one command segment. Prints
+# "push <force> <protected> <unresolved> <headless>" if the segment is a
+# `git push`, otherwise "nopush". protected=1 -> deny; unresolved=1 -> ask
+# (implicit target we could not pin down); headless=1 -> the push was prefixed
+# with CLAUDE_HEADLESS=1.
 analyze_segment() {
     local seg
     seg="$(printf '%s' "$1" | tr '(){}' '    ')"  # drop grouping punctuation
@@ -123,10 +127,13 @@ analyze_segment() {
     read -r -a t <<< "$seg"
     local n=${#t[@]} i=0
 
-    # Skip leading `NAME=value` environment assignments and an optional `env`.
+    # Skip leading `NAME=value` environment assignments and an optional `env`,
+    # noting a CLAUDE_HEADLESS=1 among them.
+    local headless=0
     while [ "$i" -lt "$n" ]; do
         case "${t[$i]}" in
             env) i=$((i + 1)) ;;
+            CLAUDE_HEADLESS=1) headless=1; i=$((i + 1)) ;;
             *=*) printf '%s' "${t[$i]}" | grep -Eq '^[A-Za-z_][A-Za-z0-9_]*=' || break; i=$((i + 1)) ;;
             *) break ;;
         esac
@@ -169,9 +176,9 @@ analyze_segment() {
     # No refspec -> implicit target; ask git where it would go.
     if [ "${#positionals[@]}" -lt 2 ]; then
         case "$(implicit_destination_status "$dash_c")" in
-            protected) echo "push $force 1 0" ;;
-            feature)   echo "push $force 0 0" ;;
-            *)         echo "push $force 0 1" ;;
+            protected) echo "push $force 1 0 $headless" ;;
+            feature)   echo "push $force 0 0 $headless" ;;
+            *)         echo "push $force 0 1 $headless" ;;
         esac
         return
     fi
@@ -182,32 +189,33 @@ analyze_segment() {
         destination_is_protected "${positionals[$ri]}" && protected=1
         ri=$((ri + 1))
     done
-    echo "push $force $protected 0"
+    echo "push $force $protected 0 $headless"
 }
 
 # Split the command into segments on shell control operators, then analyze each.
 segments="$(printf '%s' "$command_string" | sed -E 's/(\&\&|\|\||;|\|)/\n/g')"
 
-any_push=0 any_protected=0 any_forced=0 any_unresolved=0
+any_push=0 any_protected=0 any_forced=0 any_unresolved=0 any_headless=0
 while IFS= read -r segment; do
     [ -n "${segment// /}" ] || continue
-    read -r kind force protected unresolved <<< "$(analyze_segment "$segment")"
+    read -r kind force protected unresolved headless <<< "$(analyze_segment "$segment")"
     [ "$kind" = "push" ] || continue
     any_push=1
     [ "$protected" = "1" ] && any_protected=1
     [ "$force" = "1" ] && any_forced=1
     [ "$unresolved" = "1" ] && any_unresolved=1
+    [ "$headless" = "1" ] && any_headless=1
 done <<< "$segments"
 
 # No git push anywhere -> stay silent, let the normal flow proceed.
 [ "$any_push" = "1" ] || exit 0
 
 # Headless runs (a launcher exports CLAUDE_HEADLESS=1, e.g. the tidy-repos cron
-# run.sh) have no user to answer an "ask", so downgrade every would-be ask to a
-# hard "deny". When a user is present, keep the "ask" so a deliberate push to
-# main just prompts.
+# run.sh, or a push is prefixed with CLAUDE_HEADLESS=1) have no user to answer
+# an "ask", so downgrade every would-be ask to a hard "deny". When a user is
+# present, keep the "ask" so a deliberate push to main just prompts.
 ask_or_deny() {  # $1 = ask reason (shown to the user), $2 = deny reason (shown to the agent)
-    if [ "${CLAUDE_HEADLESS:-}" = "1" ]; then emit deny "$2"; else emit ask "$1"; fi
+    if [ "${CLAUDE_HEADLESS:-}" = "1" ] || [ "$any_headless" = "1" ]; then emit deny "$2"; else emit ask "$1"; fi
 }
 
 # Push to main/master/prod, in any refspec form, compound or not.
