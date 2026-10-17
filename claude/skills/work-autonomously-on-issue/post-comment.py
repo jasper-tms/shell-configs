@@ -13,15 +13,15 @@ that later resumes rely on. Finally, the orchestrator's claim comment for
 this session (if any) is deleted.
 
 Agents save a snapshot of the issue thread when they start working, and
-check it before writing their report. With `--snapshot`, if the thread
-changed since (new, edited, or deleted comments, or an edited title or
-body), nothing is posted: the changes are printed and the script exits with
-code 3. Without a message file, `--snapshot` only runs that check.
+check it before reporting. With `--snapshot`, if the thread changed since
+(new, edited, or deleted comments, or an edited title or body), nothing is
+posted: the changes are printed and the script exits with code 3. Without a
+message file, `--snapshot` only runs that check.
 
-Only the orchestrator posts. Inside a workflow session (where
-$AUTONOMOUS_ISSUE_SESSION_ID is set) the script refuses to post: the agent
-writes its message into its report folder, and the orchestrator posts it
-after pushing what the report asks for.
+Inside a session launched by the autonomous-issue-agents orchestrator (where
+$AUTONOMOUS_ISSUE_SESSION_ID is set) the script refuses to post: there the
+agent writes its message into its report folder, and the orchestrator posts
+it after pushing what the report asks for.
 
 Usage:
     post-comment.py <issue-url> --save-snapshot <snapshot-file>
@@ -32,7 +32,7 @@ Usage:
 
 `--final-label none` removes every workflow label, for the final comment on
 a closed issue. The device name comes from $AUTONOMOUS_ISSUE_DEVICE_NAME,
-set by the orchestrator.
+which an orchestrator may set, falling back to the lowercased hostname.
 """
 import argparse
 import json
