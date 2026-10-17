@@ -65,8 +65,12 @@ sections) applies to every new skill.
    file. Information (scripts, docs, other text assets) that SHOULD be added
    into context by default every time the skill is used should go directly into
    SKILL.md.
-2. Keep the description short and focused on the loading conditions ("Load
-   when..."), and on one line (not hard-wrapped).
+2. Despite being called a "description", that field exists solely to tell an
+   agent when to load the skill, not to describe the skill: think of it as
+   being named "trigger conditions" instead. Write it as one line listing the
+   situations when the skill should be loaded ("Load when..."). Never waste
+   words describing the contents of the skill. Reread it after writing and
+   delete every word that doesn't help an agent decide when to load it.
 3. Hard-wrap the SKILL.md body after 79 characters. Strongly prefer bulleted
    lists to tables. Do not use double asterisks to bold for emphasis
    mid-sentence, instead only use to emphasize the starting phrase or sentence

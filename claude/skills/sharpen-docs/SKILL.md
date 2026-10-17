@@ -138,10 +138,11 @@ content:
 Your goal is therefore extremely clear: Make skill descriptions as short as
 possible while making them 1. trigger reliably in the situations where the
 skill's contents is actually useful, and 2. not trigger when the skill's
-contents aren't relevant. Critically, a description does not need to summarize
-or list the skill's main sections or conclusions – a common mistake. When you
-see one that does, rewrite it from the mindset of "how do I keep this extremely
-short while still triggering reliably".
+contents aren't relevant. Despite being called a "description", the field
+exists solely to tell an agent when to load the skill, not to describe the
+skill: think of it as being named "trigger conditions" instead. List the
+situations when the skill should be loaded, and never waste words describing
+the contents of the skill – a common mistake.
 
 Whenever you rewrite a skill's `description`, validate the rewrite before
 settling on it: rerun the skill's `prompts-to-test-description.md` fixture
