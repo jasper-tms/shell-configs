@@ -4,9 +4,8 @@ Build an INDEX.md advertising the skills in an agent-skills folder.
 
 A skill folder is not always auto-discovered from wherever an agent is
 working, so each such folder carries an INDEX.md that lists its skills'
-names and one-line descriptions. Another skill (for example movim's
-`movim-repo-skills`) points agents at that INDEX.md so they can pick the
-right SKILL.md to open.
+names and one-line descriptions. Another skill can point agents at that
+INDEX.md so they can pick the right SKILL.md to open.
 
 Usage
 -----
@@ -131,9 +130,33 @@ def build_index(skills_dir: Path) -> str:
     folder = repo_relative_folder(skills_dir)
     children = sorted(skills_dir.iterdir(), key=lambda p: p.name)
     ignored = git_ignored_names(skills_dir, [c.name for c in children])
+
+    # A skill symlinked in from another repo that is not cloned on this
+    # machine is a dangling symlink. That says nothing about whether the
+    # skill still exists, so keep its line from the current INDEX.md rather
+    # than dropping it.
+    existing_descriptions = {}
+    index_path = skills_dir / "INDEX.md"
+    if index_path.is_file():
+        for line in index_path.read_text(encoding="utf-8").splitlines():
+            if line.startswith("- ") and ": " in line:
+                name, _, description = line[2:].partition(": ")
+                existing_descriptions[name] = description
+
     entries = []
     for child in children:
         if child.name in ignored:
+            continue
+        if child.is_symlink() and not child.exists():
+            if child.name in existing_descriptions:
+                print(f"note: {child} is a dangling symlink (its repo is "
+                      "probably not cloned here); kept its existing line",
+                      file=sys.stderr)
+                entries.append((child.name, existing_descriptions[child.name]))
+            else:
+                print(f"warning: {child} is a dangling symlink with no "
+                      "existing INDEX.md line to keep; left it out",
+                      file=sys.stderr)
             continue
         skill_md = child / "SKILL.md"
         if not (child.is_dir() and skill_md.is_file()):

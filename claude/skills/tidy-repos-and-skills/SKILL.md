@@ -90,6 +90,19 @@ Each line below lists a single skill as `- <skill-name>: <skill-description>`. E
 ...
 ```
 
+### Skills symlinked from a repo that isn't cloned here
+
+A skills folder may hold symlinks to skills in sibling repos (e.g.
+`agent-skills/some-skill -> ../other-repo/agent-skills/some-skill`).
+On a machine where that sibling repo isn't cloned, the symlink dangles. That
+says nothing about whether the skill still exists, so `build_index.py` keeps
+the skill's existing `INDEX.md` line unchanged (printing a `note:` to stderr)
+instead of dropping it. Do not "fix" such a line by removing it, and do not
+report it as a problem; at most mention which repos weren't cloned. If a
+dangling symlink has no existing line to keep, the script prints a `warning:`
+and leaves it out. Put that warning under **Needs attention** (clone the repo
+and rerun, or check whether the link is stale).
+
 ## Validating skill frontmatter
 
 The Agent Skills spec makes both `name:` and `description:` mandatory, and
