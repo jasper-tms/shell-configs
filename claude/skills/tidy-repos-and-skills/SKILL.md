@@ -19,7 +19,9 @@ It then runs whatever extra tasks this particular machine defines (see
 This skill defines only the machine-independent routine. Everything specific to
 one machine - extra checks, extra files to refresh, folders deliberately left
 unindexed - lives in `~/.config/tidy-repos-and-skills/`, outside this repo.
-Each file there is typically a symlink into a machine's own config repo.
+Each file there is typically a symlink to a skill describing one domain's
+tidying steps (the machine's own, or an organization's), which links back to
+this skill and leaves everything this skill covers to it.
 
 At the start of every tidying, read every `.md` file in that folder (in name
 order) and follow all of them. Their tasks become extra steps of the sequence
@@ -36,6 +38,11 @@ the `finishing-tasks-in-repos` convention (which writes a `commit_*.sh` script
 for the user to run). Still follow its message conventions (under 73
 characters, start with a verb). Never force-push.
 
+Push a branch only when every commit it holds that its upstream lacks was made
+by this tidying. If it also holds other unpushed commits - someone's work in
+progress - do not push it: leave the tidying's commit in place and report the
+repo as unpushed.
+
 If a push is refused - rejected by the remote, denied by a hook, or ruled out
 by whoever asked for the tidying - leave the commit in place and name the repo
 as unpushed in the summary.
@@ -43,9 +50,9 @@ as unpushed in the summary.
 ## Which folders are indexed: the INDEX.md itself is the opt-in
 
 There is no hand-maintained list of indexed folders. A skills folder
-participates in a tidying — its `INDEX.md` is regenerated, its skills appear in
-the global `_SKILL_LISTING.md`, and its frontmatter is validated — **if and only
-if it already contains an `INDEX.md`**. Creating that file once (a single
+participates in a tidying — its `INDEX.md` is regenerated, its skills appear
+in the global `_SKILL_LISTING.md`, and its frontmatter is validated — **if and
+only if it already contains an `INDEX.md`**. Creating that file once (a single
 `build_index.py` run) opts a new folder in; deleting it opts out.
 
 `~/.claude/skills/` itself is always left **without** an `INDEX.md`: it is a
@@ -106,13 +113,14 @@ python3 <this skill's directory>/validate_skill_frontmatter.py
 ```
 
 It checks `~/.claude/skills/_SKILL_LISTING.md` by default; pass a different
-listing path as an argument to check another. It prints one problem per line (or
-`all listed skills valid`) and exits nonzero when any listed skill is invalid.
+listing path as an argument to check another. It prints one problem per line
+(or `all listed skills valid`) and exits nonzero when any listed skill is
+invalid.
 
-Absent folders (repos not cloned on this machine) are skipped. A `listed but no
-SKILL.md on disk` line means the listing is stale - normally the reconcile step
-below has already removed such an entry; if it persists, the listing points at a
-skill that no longer exists.
+Absent folders (repos not cloned on this machine) are skipped. A `listed but
+no SKILL.md on disk` line means the listing is stale - normally the reconcile
+step below has already removed such an entry; if it persists, the listing
+points at a skill that no longer exists.
 
 ## Watch for asserted-state drift
 
@@ -210,14 +218,15 @@ It carries names and locations only - no descriptions (those live in the
   `.git/info/exclude`), matching `build_index.py`, so private skills never leak
   into the listing.
 - Preserve the file's structure and its per-skill annotations (e.g.
-  `(NOT symlinked into ~/.claude/skills)`); only add/remove skill lines (and, when
-  a section is genuinely missing, whole sections), don't reflow existing prose.
+  `(NOT symlinked into ~/.claude/skills)`); only add/remove skill lines (and,
+  when a section is genuinely missing, whole sections), don't reflow existing
+  prose.
 
 ### 4. Validate skill frontmatter
 
-Run the check from "Validating skill frontmatter" above (now that the listing is
-reconciled against disk). Add any problems it prints to the summary's **Needs
-attention**. These need a human to fix the offending `SKILL.md`; a tidying does
+Run the check from "Validating skill frontmatter" above (now that the listing
+is reconciled against disk). Add any problems it prints to the summary's
+**Needs attention**. These need a human to fix the offending `SKILL.md`; a tidying does
 not rewrite skill frontmatter itself.
 
 ### 5. Run the machine-specific tasks
@@ -253,9 +262,12 @@ and a routine success must not cost more than one line.
    colon varies):
 
    - `✓ Pull all repos: OK` - or `✓ Pull all repos: OK (rebased: <repos>)`.
-   - `✓ Regenerate agent-skills INDEX.md: no change` - or `... : updated <repos>`.
-   - `✓ Reconcile global _SKILL_LISTING.md: no change` - or `... : <what changed>`.
-   - `✓ Validate skill frontmatter: valid` - or `⚠ Validate skill frontmatter: <problems>`.
+   - `✓ Regenerate agent-skills INDEX.md: no change` - or
+     `... : updated <repos>`.
+   - `✓ Reconcile global _SKILL_LISTING.md: no change` - or
+     `... : <what changed>`.
+   - `✓ Validate skill frontmatter: valid` - or
+     `⚠ Validate skill frontmatter: <problems>`.
    - One line per machine-specific task, using the labels the instructions
      give. With no machine instructions, write the single line
      `✓ Machine-specific tasks: none configured`.
