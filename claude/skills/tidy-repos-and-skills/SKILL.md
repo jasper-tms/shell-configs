@@ -1,72 +1,60 @@
 ---
 name: tidy-repos-and-skills
-description: The nightly autonomous maintenance pass that pulls every repo on this machine, keeps the skill indexes in sync (each agent-skills folder's INDEX.md and the global ~/.claude/skills/_SKILL_LISTING.md), and runs any machine-specific tidy tasks. Load when running, editing, or debugging that task (the tidy-repos-and-skills cron job), when an INDEX.md or _SKILL_LISTING.md looks stale or wrong, or when asked to regenerate a skill folder's index.
+description: Load when asked to tidy repos and skills, or when an agent-skills INDEX.md or ~/.claude/skills/_SKILL_LISTING.md looks stale or wrong, or when asked to regenerate a skill folder's index.
 ---
 
-# Tidy repos and skills (nightly maintenance)
+# Tidy repos and skills
 
-This skill is the playbook for an autonomous nightly task that runs headless
-(`claude -p`) overnight, launched by a machine-specific wrapper script. It
-pulls every repo under `~/repos` and keeps two kinds of skill index in sync
-with the actual `SKILL.md` files on disk:
+A tidying pulls every repo under `~/repos` and brings two kinds of skill index
+back in sync with the actual `SKILL.md` files on disk:
 
 - a per-folder `INDEX.md` in each version-controlled agent-skills folder, and
 - the single global `~/.claude/skills/_SKILL_LISTING.md` (names + locations).
 
-It then runs whatever extra tidy tasks this particular machine defines (see
-"Machine-specific tasks").
+It then runs whatever extra tasks this particular machine defines (see
+"Machine-specific instructions").
 
-The same steps are useful interactively whenever an index looks stale, so the
-skill is loadable by any agent, not only the cron job.
-
-## Machine-specific tasks: ~/.config/tidy-repos-and-skills/instructions.md
+## Machine-specific instructions: ~/.config/tidy-repos-and-skills/*.md
 
 This skill defines only the machine-independent routine. Everything specific to
 one machine - extra checks, extra files to refresh, folders deliberately left
-unindexed, how that machine's wrapper is tested - lives in
-`~/.config/tidy-repos-and-skills/instructions.md`, outside this repo. That file
-is typically a symlink to a skill in the machine's own config repo. Read it at
-the start of every run: its tasks become extra steps of the nightly sequence
-(step 5 below), and anything it says about the steps here (e.g. folders to
+unindexed - lives in `~/.config/tidy-repos-and-skills/`, outside this repo.
+Each file there is typically a symlink into a machine's own config repo.
+
+At the start of every tidying, read every `.md` file in that folder (in name
+order) and follow all of them. Their tasks become extra steps of the sequence
+(step 5 below), and anything they say about the steps here (e.g. folders to
 leave alone) applies too.
 
-If the file does not exist, this machine has no extra tasks; the report says so
-in one line.
+If the folder is absent or holds no `.md` files, this machine has no extra
+tasks; the summary says so in one line.
 
-## This task commits on its own; the wrapper pushes main
+## Commit and push directly
 
-This is the deliberate exception to the normal `finishing-tasks-in-repos`
-convention (which writes a `commit_*.sh` script for the user to run). The nightly
-task is autonomous and self-authorized to **commit** its index fixes directly.
-Still follow the message conventions (under 73 characters, start with a verb).
+A tidying commits its own fixes and pushes them, the deliberate exception to
+the `finishing-tasks-in-repos` convention (which writes a `commit_*.sh` script
+for the user to run). Still follow its message conventions (under 73
+characters, start with a verb). Never force-push.
 
-Pushing main is **not** your job. A global `gate-git-push.sh` PreToolUse hook
-denies an agent `git push` to `main`/`master`/`prod` in this headless run, so
-do not attempt one. After you exit, the wrapper script pushes the protected
-branch for the repos this task maintains (its `git push` runs in the wrapper
-shell, not an agent tool call, so the hook never gates it). Just commit and
-leave main to the wrapper. (You *may* still push a feature branch yourself if a
-repo happens to be on one - the hook allows that.)
+If a push is refused - rejected by the remote, denied by a hook, or ruled out
+by whoever asked for the tidying - leave the commit in place and name the repo
+as unpushed in the summary.
 
 ## Which folders are indexed: the INDEX.md itself is the opt-in
 
 There is no hand-maintained list of indexed folders. A skills folder
-participates in this task — its `INDEX.md` is regenerated, its skills appear in
+participates in a tidying — its `INDEX.md` is regenerated, its skills appear in
 the global `_SKILL_LISTING.md`, and its frontmatter is validated — **if and only
 if it already contains an `INDEX.md`**. Creating that file once (a single
-`build_index.py` run) opts a new folder in; deleting it opts out. So the set of
-indexed folders lives on disk, as the set of existing `INDEX.md` files, not in
-this skill. This is deliberate: it keeps the general "how to tidy" (this skill,
-useful to anyone) separate from the specific "what we tidy" (whatever is on this
-machine's disk).
+`build_index.py` run) opts a new folder in; deleting it opts out.
 
 `~/.claude/skills/` itself is always left **without** an `INDEX.md`: it is a
 symlink farm plus unversioned third-party skills, not in any repo. The machine
-instructions file may name further folders that contain `SKILL.md` files but
-are deliberately left unindexed (e.g. an app's own runtime skills).
+instructions may name further folders that contain `SKILL.md` files but are
+deliberately left unindexed (e.g. an app's own runtime skills).
 
 To bring a new folder in, run `build_index.py` on it once and add a section for
-it to `_SKILL_LISTING.md`; from then on this task keeps both current.
+it to `_SKILL_LISTING.md`; from then on every tidying keeps both current.
 
 ## Regenerating an INDEX.md: use build_index.py
 
@@ -108,12 +96,10 @@ and rerun, or check whether the link is stale).
 The Agent Skills spec makes both `name:` and `description:` mandatory, and
 requires each skill's `name:` to match its parent directory name. This skill
 ships `validate_skill_frontmatter.py`, which enforces all three across every
-skill the global listing knows about. It reads the folder set straight from
-`~/.claude/skills/_SKILL_LISTING.md` (no hardcoded
-folder list to drift out of date), so a skill added anywhere the listing covers
-gets checked automatically, and it reuses `build_index.py`'s frontmatter parser.
-Like `build_index.py`, it sits next to this `SKILL.md`. Run it and route any
-output into the report's **Needs attention**:
+skill the global listing knows about, reading the folder set straight from
+`~/.claude/skills/_SKILL_LISTING.md`. Like `build_index.py`, it sits next to
+this `SKILL.md`. Run it and route any output into the summary's **Needs
+attention**:
 
 ```bash
 python3 <this skill's directory>/validate_skill_frontmatter.py
@@ -134,31 +120,26 @@ Beyond the fixed checks above, stay alert for the general failure they are all
 instances of: **a place that asserts some state should be true, which has
 silently drifted from what is actually true.** The index files assert "these
 skills exist"; frontmatter asserts "`name:` matches the folder"; a README
-asserts "the cron line is `0 3 * * *`" or "this file is the source of truth"; a
-committed `crontab.txt` asserts "this is the live crontab". These drift
-because the assertion and the reality are edited at different times by
-different people or agents.
+asserts "the cron line is `0 3 * * *`" or "this file is the source of truth".
+These drift because the assertion and the reality are edited at different
+times by different people or agents.
 
-You cannot enumerate every such assertion in advance — new ones appear with every
-refactor. So when, in the course of the nightly pull and index work, you happen
-to notice a doc, README, comment, or config that clearly states something now
-contradicted by reality (a stale schedule, a "source of truth" that has moved, a
-path or filename that no longer exists, a count that no longer matches), record
-it under **Needs attention** with the file and the specific contradiction. Do
-**not** auto-fix it: the correct direction is usually ambiguous (fix the
-assertion, or fix the reality?), and that judgment is a human's. Reporting it is
-the whole value — a drifted assertion is invisible until someone trusts it.
+When, in the course of the pull and index work, you notice a doc, README,
+comment, or config that clearly states something now contradicted by reality (a
+stale schedule, a "source of truth" that has moved, a path or filename that no
+longer exists, a count that no longer matches), record it under **Needs
+attention** with the file and the specific contradiction. Do **not** auto-fix
+it: the correct direction is usually ambiguous (fix the assertion, or fix the
+reality?), and that judgment is a human's.
 
-If a particular assertion turns out to be worth checking every single night,
-that is a signal to promote it to a deterministic check (like the frontmatter
-validator above, or a task in the machine instructions file) rather than
-relying on noticing it.
+If a particular assertion turns out to be worth checking on every tidying, that
+is a signal to promote it to a deterministic check (like the frontmatter
+validator above, or a task in a machine instructions file).
 
-## Nightly sequence
+## The sequence
 
-First read `~/.config/tidy-repos-and-skills/instructions.md` if it exists (see
-"Machine-specific tasks"). Then run these in order. Keep a running note of
-everything worth reporting.
+First read the machine-specific instructions (see above). Then run these steps
+in order, keeping a running note of everything worth reporting.
 
 ### 1. Pull every repo, rebasing where needed
 
@@ -184,7 +165,7 @@ for gitdir in ~/repos/*/.git ~/repos/*/*/.git; do
 done
 ```
 
-Record, for the report: repos that were rebased, repos that hit a rebase
+Record, for the summary: repos that were rebased, repos that hit a rebase
 conflict (aborted, untouched), and any credential failures from `pullrepos`.
 
 ### 2. Regenerate every INDEX.md on disk
@@ -206,8 +187,9 @@ done
 Then, per repo, `git diff --stat` the `INDEX.md` files to see what actually
 changed. A changed `INDEX.md` means a skill was added, removed, or had its
 description edited. Some indexed folders may live in other people's repos
-(whose own tooling may defer index regeneration to this task); regenerating an already-correct index is a no-op, so
-a commit happens only when a skill really changed.
+(whose own tooling may defer index regeneration to this skill); regenerating an
+already-correct index is a no-op, so a commit happens only when a skill really
+changed.
 
 ### 3. Reconcile the global _SKILL_LISTING.md
 
@@ -215,7 +197,7 @@ a commit happens only when a skill really changed.
 machine-specific repo; commit edits to its real file there) lists every
 skill by **name** under its real-folder heading, plus symlink/consumer notes.
 It carries names and locations only - no descriptions (those live in the
-`INDEX.md` files). This step needs judgment, which is why the task is agentic:
+`INDEX.md` files). This step needs judgment:
 
 - Every folder that has an `INDEX.md` (i.e. every indexed folder) should have a
   section in the listing. If one is missing — a folder was opted in but never
@@ -234,41 +216,30 @@ It carries names and locations only - no descriptions (those live in the
 ### 4. Validate skill frontmatter
 
 Run the check from "Validating skill frontmatter" above (now that the listing is
-reconciled against disk). Add any problems it prints - a missing mandatory
-`name:` or `description:`, or a `name:` that doesn't match its folder - to the
-report's **Needs attention** section. These need a human to fix the offending
-`SKILL.md`; the nightly task does not rewrite skill frontmatter itself.
+reconciled against disk). Add any problems it prints to the summary's **Needs
+attention**. These need a human to fix the offending `SKILL.md`; a tidying does
+not rewrite skill frontmatter itself.
 
 ### 5. Run the machine-specific tasks
 
-Do each task the machine instructions file defines, as it describes. Each task
-gets its own line in the report, under the label the instructions give it. If
-there is no instructions file, skip this step.
+Do each task the machine instructions define, as they describe. Each task gets
+its own line in the summary, under the label the instructions give it. If there
+are no machine instructions, skip this step.
 
-### 6. Commit per repo (the wrapper pushes main)
+### 6. Commit and push per repo
 
-For each repo touched in steps 1-5, commit the changed files with a verb-first
-message under 73 characters (e.g. `Refresh skill INDEX.md files`,
-`Sync _SKILL_LISTING.md with skills on disk`). Do **not** `git push` a
-main/master/prod branch - the hook blocks it and the wrapper pushes it for you
-after you exit (see "This task commits on its own; the wrapper pushes main").
-The wrapper records what it pushed, or any rejected push, into the report
-itself, so you do not need to. If a repo happens to be on a feature branch, you
-may push that yourself; never force-push.
+For each repo touched in steps 2-5, commit only the files the tidying itself
+changed - never someone's unrelated uncommitted work, which stays as it is
+(staging just your files with `git add <file>`) - with a verb-first message
+under 73 characters (e.g. `Refresh skill INDEX.md files`,
+`Sync _SKILL_LISTING.md with skills on disk`), then push (see "Commit and push
+directly").
 
-### 7. Write the report file
+### 7. Write the summary
 
-Write your final summary to the path in the `TIDY_REPORT_FILE` environment
-variable. The **first line** is the machine-readable status the wrapper keys
-on:
-
-- `STATUS: quiet` - everything pulled cleanly, no index drift, nothing
-  committed, nothing needs attention. The wrapper sends no email.
-- `STATUS: report` - anything changed or anything needs attention. The wrapper
-  emails the rest of the file.
-
-**Keep the report terse - it is read at a glance, and a routine success must
-not cost more than one line.** After the status line, write:
+Finish with a summary, as your final message unless whoever asked for the
+tidying says where else to write it. Keep it terse - it is read at a glance,
+and a routine success must not cost more than one line.
 
 1. A header line: `tidy-repos-and-skills - <YYYY-MM-DD>`.
 
@@ -278,38 +249,34 @@ not cost more than one line.** After the status line, write:
    you did it, which skills you followed, or which sub-steps had nothing to
    report - a clean step is just `✓ <step>: OK`.
 
-   Use these descriptive step labels verbatim (keep the label; only the part
-   after the colon varies):
+   Use these step labels verbatim (keep the label; only the part after the
+   colon varies):
 
    - `✓ Pull all repos: OK` - or `✓ Pull all repos: OK (rebased: <repos>)`.
    - `✓ Regenerate agent-skills INDEX.md: no change` - or `... : updated <repos>`.
    - `✓ Reconcile global _SKILL_LISTING.md: no change` - or `... : <what changed>`.
    - `✓ Validate skill frontmatter: valid` - or `⚠ Validate skill frontmatter: <problems>`.
-   - One line per machine-specific task, using the labels the instructions file
-     gives. With no instructions file, write the single line
+   - One line per machine-specific task, using the labels the instructions
+     give. With no machine instructions, write the single line
      `✓ Machine-specific tasks: none configured`.
-
-   (The wrapper appends its own push-outcome line after you exit - do not write
-   one, and do not report on pushing main.)
+   - `✓ Commit and push: nothing to commit` - or `... : <repos> pushed`, or
+     `⚠ Commit and push: <repos> committed but not pushed (<reason>)`.
 
 3. A `⚠ Needs attention (<n>):` block **only if** something needs attention: a
    rebase conflict, a credential failure, a frontmatter problem, a
-   machine-specific task's problem, or asserted-state drift you noticed (see "Watch for asserted-state drift").
-   This is the one place to expand - give each item the file/command and the
-   specific contradiction, enough to act on without re-investigating. Every step
-   line you marked `⚠` above must appear here in full. Omit the whole block when
-   nothing needs attention.
+   machine-specific task's problem, an unpushed commit, or asserted-state drift
+   you noticed (see "Watch for asserted-state drift"). This is the one place to
+   expand - give each item the file/command and the specific contradiction,
+   enough to act on without re-investigating. Every step line you marked `⚠`
+   above must appear here in full. Omit the whole block when nothing needs
+   attention.
 
-Anything needing attention makes the overall status `STATUS: report` (the
-wrapper also flips it to `report` if its push was rejected). If you could not
-finish, still write the file with `STATUS: report`, whatever `✓`/`⚠` step lines
-you completed, and a `⚠ Needs attention` note on how far you got - a missing
-report file makes the wrapper send a generic failure email.
+If you could not finish, still write the summary with whatever `✓`/`⚠` step
+lines you completed, and a `⚠ Needs attention` note on how far you got.
 
-Example of a run with one real issue (this is the whole email):
+Example of a tidying with one real issue:
 
 ```
-STATUS: report
 tidy-repos-and-skills - 2026-09-10
 
 ✓ Pull all repos: OK (rebased: my-app)
@@ -317,18 +284,10 @@ tidy-repos-and-skills - 2026-09-10
 ✓ Reconcile global _SKILL_LISTING.md: no change
 ✓ Validate skill frontmatter: valid
 ✓ Machine-specific tasks: none configured
+✓ Commit and push: my-app pushed
 
 ⚠ Needs attention (1):
 - uv-sources clean filter not configured on this machine; checkout/rebase
   leaves [tool.uv.sources] staged, and a commit could leak local absolute
   paths. Fix: using-uv INSTALL.md steps 4-5.
 ```
-
-A fully clean run is `STATUS: quiet` and sends no email at all - so every email
-that does arrive has at most a handful of `✓` lines plus, when it matters, the
-`⚠ Needs attention` block.
-
-## Testing
-
-How to test-run the wrapper without committing or sending email is
-machine-specific; see the machine instructions file.

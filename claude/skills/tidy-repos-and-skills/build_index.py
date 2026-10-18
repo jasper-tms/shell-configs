@@ -107,7 +107,7 @@ def git_ignored_names(skills_dir: Path, names: list[str]) -> set[str]:
     agent-skills repo's own build_index.py, so a folder that repo maintains
     (for example scoreTec/agent-skills, which supports privately symlinked
     skills) produces the identical INDEX.md whether that repo's script or this
-    nightly one regenerates it.
+    one regenerates it.
     """
     if not names:
         return set()
