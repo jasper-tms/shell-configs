@@ -79,13 +79,21 @@ ln -s ../../.githooks/pre-commit .git/hooks/pre-commit
 - `post-merge.d/10-refresh-uv-editables.sh`
   Same `[tool.uv.sources]` refresh, after a `git pull`/`git merge`.
 
+- `pre-commit.d/10-rewrap-skill-markdown.sh`
+  In every staged Markdown file that belongs to a skill (its folder or a parent
+  folder has a `SKILL.md`), re-wraps the lines the commit changed, plus one
+  line on either side, so that prose lines stay under 80 characters, and
+  re-stages it. The rest of the file is left as written. A file that also has
+  unstaged changes aborts the commit instead, so those changes are never swept
+  into it.
+
 - `post-merge.d/20-symlink-skills.sh`
   The same offer after a `git pull`/`git merge`, but only for the skills that
   merge actually added (an added `SKILL.md` between `ORIG_HEAD` and `HEAD`). A
   skill you have deliberately chosen never to link would otherwise be offered
   again on every pull, including pulls that do not touch it.
 
-Both underlying commands are resolved from `PATH`, which
+The underlying commands are resolved from `PATH`, which
 `configure.sh` populates with this repo's `shell_scripts/` directory:
 
 - **`refresh-uv-editables`** — points dependencies that you have local clones of
@@ -99,6 +107,11 @@ Both underlying commands are resolved from `PATH`, which
   as `symlink-skills <path>` it offers every unlinked skill under that path;
   naming skills after the path (`symlink-skills <path> some-skill ...`) narrows
   the offer to those.
+- **`rewrap-markdown`** — re-wraps Markdown prose to at most 79 characters per
+  line and joins lines that were wrapped too early, leaving front matter, code,
+  tables, headings, HTML, and hard line breaks untouched. Can also be run by
+  hand (`--check`, `--diff`), on a whole file or, with `--lines 3-7,12`, only
+  around those lines.
 
 ## Setup
 

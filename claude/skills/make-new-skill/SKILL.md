@@ -71,8 +71,9 @@ sections) applies to every new skill.
    situations when the skill should be loaded ("Load when..."). Never waste
    words describing the contents of the skill. Reread it after writing and
    delete every word that doesn't help an agent decide when to load it.
-3. Hard-wrap the SKILL.md body after 79 characters. Strongly prefer bulleted
-   lists to tables. Do not use double asterisks to bold for emphasis
+3. Hard-wrap the SKILL.md body after 79 characters (a global pre-commit hook
+   enforces this by running `rewrap-markdown`). Strongly prefer bulleted lists
+   to tables. Do not use double asterisks to bold for emphasis
    mid-sentence, instead only use to emphasize the starting phrase or sentence
    of a new section, and even then, rarely.
 4. Symlink to a Claude-auto-loading folder:

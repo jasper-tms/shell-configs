@@ -1,0 +1,496 @@
+#!/usr/bin/env python3
+"""
+Re-wrap Markdown files so that every line of prose is at most `--width`
+characters long (default 79, so strictly under 80), and so that no line is
+wrapped earlier than it needs to be.
+
+Only paragraph text (including text in list items, footnotes, and block
+quotes) is re-wrapped. Everything whose line breaks carry meaning is left
+exactly as written: front matter, fenced and indented code blocks, math
+blocks, headings, tables, HTML blocks, link reference definitions,
+horizontal rules, and hard line breaks (two trailing spaces or a trailing
+backslash).
+
+Usage:
+    rewrap-markdown FILE.md [FILE.md ...]   # rewrite files in place
+    rewrap-markdown --check FILE.md         # exit 1 if any would change
+    rewrap-markdown --diff FILE.md          # show changes, write nothing
+    rewrap-markdown --lines 3-7,12 FILE.md  # only paragraphs on those lines
+    rewrap-markdown - < in.md > out.md      # filter standard input
+
+A git pre-commit hook (git-hooks/pre-commit.d/10-rewrap-skill-markdown.sh in
+this repo) runs this with `--lines` on every staged Markdown file that belongs
+to a skill, so a commit only re-wraps the paragraphs it touches.
+"""
+import argparse
+import difflib
+import re
+import sys
+import unicodedata
+
+LIST_MARKER = r'(?:[-+*]|\d{1,9}[.)])'
+LIST_ITEM = re.compile(r'^(\s*)(' + LIST_MARKER + r')( +|\t|$)(\[[ xX]\] +)?')
+FOOTNOTE_DEFINITION = re.compile(r'^(\s*)\[\^[^\]]+\]:( +|$)')
+LINK_REFERENCE_DEFINITION = re.compile(r'^\s{0,3}\[[^\]^][^\]]*\]:\s*\S')
+FENCE_OPEN = re.compile(
+    r'^\s*(?:' + LIST_MARKER + r'\s+|>\s?)*(`{3,}|~{3,})(.*)$')
+ATX_HEADING = re.compile(r'^\s*#{1,6}(\s|$)')
+SETEXT_UNDERLINE = re.compile(r'^\s{0,3}(=+|-+)\s*$')
+THEMATIC_BREAK = re.compile(r'^\s*([-*_])(\s*\1){2,}\s*$')
+BLOCKQUOTE = re.compile(r'^(\s*>) ?')
+TABLE_ROW = re.compile(r'^\s*\|')
+TABLE_DELIMITER = re.compile(
+    r'^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$')
+MATH_FENCE = re.compile(r'^\s*\$\$')
+HTML_BLOCK_TAGS = (
+    'address|article|aside|base|basefont|blockquote|body|caption|center|col|'
+    'colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|'
+    'footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|'
+    'link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|'
+    'picture|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|'
+    'track|ul|script|pre|style|textarea|img|video|audio|br')
+HTML_BLOCK = re.compile(
+    r'^\s*(<!--|<\?|<![A-Za-z]|<!\[CDATA\['
+    r'|</?(?:' + HTML_BLOCK_TAGS + r')(?:\s|/?>|$)'
+    r'|</?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?/?>\s*$)',
+    re.IGNORECASE)
+INLINE_HTML_TAG = re.compile(r'</?[A-Za-z][A-Za-z0-9-]*(?:\s+[^<>]*)?/?>')
+# A word that, if it began a line, could make Markdown start a new block
+# (a heading, list item, block quote, fence, table, or HTML block) in the
+# middle of a paragraph.
+BLOCK_STARTING_WORD = re.compile(
+    r'(#{1,6}|[-+*]|\d{1,9}[.)]|=+|-+|_+)$|>|\||`{3}|~{3}|<[A-Za-z/!?]'
+    r'|\$\$|\[\^')
+
+
+def display_width(text):
+    """Number of terminal columns `text` occupies (wide characters count 2)."""
+    width = 0
+    for character in text:
+        if unicodedata.combining(character):
+            continue
+        width += 2 if unicodedata.east_asian_width(character) in 'WF' else 1
+    return width
+
+
+def indentation(line):
+    """Width of the line's leading whitespace, with tabs as 4 columns."""
+    leading = line[:len(line) - len(line.lstrip())]
+    return len(leading.expandtabs(4))
+
+
+def split_into_words(text):
+    """
+    Split paragraph text at spaces, but never inside an inline code span,
+    an inline HTML tag, or right after a backslash escape, since breaking
+    there would change how the text renders.
+    """
+    words = []
+    current = []
+    position = 0
+    while position < len(text):
+        character = text[position]
+        if character in ' \t':
+            if current:
+                words.append(''.join(current))
+                current = []
+            position += 1
+        elif character == '\\' and position + 1 < len(text):
+            current.append(text[position:position + 2])
+            position += 2
+        elif character == '`':
+            run = re.match(r'`+', text[position:]).group()
+            closing = re.compile(r'(?<!`)' + run + r'(?!`)')
+            match = closing.search(text, position + len(run))
+            end = match.end() if match else position + len(run)
+            current.append(text[position:end])
+            position = end
+        elif (character == '<'
+              and (match := INLINE_HTML_TAG.match(text, position))):
+            current.append(match.group())
+            position = match.end()
+        else:
+            current.append(character)
+            position += 1
+    if current:
+        words.append(''.join(current))
+    return words
+
+
+def fill(words, first_prefix, rest_prefix, width):
+    """
+    Greedily pack `words` into lines no wider than `width` (prefix
+    included). A word that alone is too long gets its own overlong line,
+    except that a code span or HTML tag too long for any line is broken at
+    its spaces (which renders identically).
+    """
+    pieces = []
+    for word in words:
+        if display_width(rest_prefix + word) > width and ' ' in word:
+            pieces.extend(piece for piece in word.split(' ') if piece)
+        else:
+            pieces.append(word)
+    lines = [[]]
+    for word in pieces:
+        line = lines[-1]
+        prefix = first_prefix if len(lines) == 1 else rest_prefix
+        if (not line
+                or display_width(prefix + ' '.join(line + [word])) <= width):
+            line.append(word)
+            continue
+        new_line = [word]
+        # Pull words down from the previous line until the new line no
+        # longer starts with something Markdown would read as a new block.
+        while BLOCK_STARTING_WORD.match(new_line[0]) and len(line) > 1:
+            new_line.insert(0, line.pop())
+        if BLOCK_STARTING_WORD.match(new_line[0]):
+            # Better an overlong line than a changed document.
+            line.extend(new_line)
+        else:
+            lines.append(new_line)
+    return [(first_prefix if number == 0 else rest_prefix) + ' '.join(line)
+            for number, line in enumerate(lines)]
+
+
+def rewrap_segment(texts, originals, touched, prefix, rest_prefix, width):
+    """
+    Re-wrap one stretch of paragraph between hard line breaks.
+
+    `texts` are its lines with any list or footnote marker removed, and
+    `originals` the same lines exactly as written. `touched` is None to
+    re-wrap the whole stretch, or the set of offsets into it that changed,
+    in which case only the changed lines plus one line on either side are
+    re-wrapped (so the edit can absorb words from, or push words onto, its
+    neighbors), and all other lines are left exactly as written.
+    """
+    if touched is not None and not touched:
+        return list(originals)
+    if touched is None:
+        start, end, last_touched = 0, len(texts), len(texts) - 1
+    else:
+        start = max(0, min(touched) - 1)
+        end = min(len(texts), max(touched) + 2)
+        last_touched = max(touched)
+    words = split_into_words(
+        ' '.join(text.strip() for text in texts[start:end]))
+    filled = fill(words, prefix if start == 0 else rest_prefix, rest_prefix,
+                  width)
+    # Keep the line after the edit as written if the new line breaks already
+    # line up with the original ones there.
+    for number in range(len(filled) - 1):
+        remaining = ' '.join(filled[number + 1:]).split()
+        for original_number in range(last_touched + 1, end):
+            if ' '.join(texts[original_number:end]).split() == remaining:
+                return (originals[:start] + filled[:number + 1]
+                        + originals[original_number:])
+    return originals[:start] + filled + originals[end:]
+
+
+def interrupts_paragraph(line):
+    """Whether `line` starts a new block instead of continuing a paragraph."""
+    return bool(ATX_HEADING.match(line) or FENCE_OPEN.match(line)
+                or THEMATIC_BREAK.match(line) or BLOCKQUOTE.match(line)
+                or LIST_ITEM.match(line) or FOOTNOTE_DEFINITION.match(line)
+                or HTML_BLOCK.match(line) or TABLE_ROW.match(line)
+                or MATH_FENCE.match(line))
+
+
+def rewrap_lines(lines, width, touched=None):
+    """
+    Re-wrap a list of Markdown lines (without newlines). `touched` is None
+    to re-wrap everything, or the set of indices into `lines` that changed,
+    in which case all other lines are left as written where possible.
+    """
+    output = []
+    # Column where the content of each enclosing list item starts, used to
+    # tell indented code blocks apart from list item continuations.
+    list_content_indents = []
+    previous_blank = True
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        indent = indentation(line)
+        if not line.strip():
+            output.append(line if touched is not None and index not in touched
+                          else '')
+            previous_blank = True
+            index += 1
+            continue
+        if previous_blank or LIST_ITEM.match(line):
+            while list_content_indents and indent < list_content_indents[-1]:
+                list_content_indents.pop()
+        base_indent = list_content_indents[-1] if list_content_indents else 0
+        previous_blank = False
+
+        # Indented code block: copy verbatim.
+        if (indent >= base_indent + 4
+                and (index == 0 or not lines[index - 1].strip())):
+            end = index
+            while end < len(lines) and (not lines[end].strip()
+                                        or indentation(lines[end])
+                                        >= base_indent + 4):
+                end += 1
+            while not lines[end - 1].strip():
+                end -= 1
+            output.extend(lines[index:end])
+            index = end
+            continue
+
+        # Fenced code block: copy verbatim through the closing fence.
+        fence = FENCE_OPEN.match(line)
+        if fence:
+            fence_characters = fence.group(1)
+            closing = re.compile(r'^[\s>]*' + re.escape(fence_characters[0])
+                                 + '{' + str(len(fence_characters)) + r',}\s*$')
+            end = index + 1
+            while end < len(lines) and not closing.match(lines[end]):
+                end += 1
+            end = min(end + 1, len(lines))
+            output.extend(lines[index:end])
+            if LIST_ITEM.match(line):
+                item = LIST_ITEM.match(line)
+                list_content_indents.append(
+                    indent + len(item.group(2)) + len(item.group(3) or ' '))
+            index = end
+            continue
+
+        # Display math block: copy verbatim through the closing `$$`.
+        if MATH_FENCE.match(line):
+            stripped = line.strip()
+            end = index + 1
+            if not (len(stripped) > 2 and stripped.endswith('$$')
+                    and stripped != '$$'):
+                while end < len(lines) and '$$' not in lines[end]:
+                    end += 1
+                end = min(end + 1, len(lines))
+            output.extend(lines[index:end])
+            index = end
+            continue
+
+        # Block quote: strip one level of `>` and re-wrap the inside.
+        quote = BLOCKQUOTE.match(line)
+        if quote:
+            marker = quote.group(1)
+            end = index
+            inner = []
+            while end < len(lines):
+                match = BLOCKQUOTE.match(lines[end])
+                if not match or match.group(1) != marker:
+                    break
+                inner.append(lines[end][match.end():])
+                end += 1
+            inner_touched = None
+            if touched is not None:
+                inner_touched = {line_number - index for line_number in touched
+                                 if index <= line_number < end}
+                if not inner_touched:
+                    output.extend(lines[index:end])
+                    index = end
+                    continue
+            inner_width = width - display_width(marker + ' ')
+            for inner_line in rewrap_lines(inner, inner_width, inner_touched):
+                output.append(marker + ' ' + inner_line if inner_line
+                              else marker)
+            index = end
+            continue
+
+        # Blocks that are copied verbatim until the next blank line.
+        if HTML_BLOCK.match(line) or TABLE_ROW.match(line):
+            end = index
+            if line.lstrip().startswith('<!--'):
+                while end < len(lines) and '-->' not in lines[end]:
+                    end += 1
+                end += 1
+            while end < len(lines) and lines[end].strip():
+                end += 1
+            output.extend(lines[index:end])
+            index = end
+            continue
+
+        # Single lines that are copied verbatim.
+        if (ATX_HEADING.match(line) or THEMATIC_BREAK.match(line)
+                or LINK_REFERENCE_DEFINITION.match(line)):
+            output.append(line)
+            index += 1
+            continue
+
+        # Everything else is a paragraph, possibly opening a list item or
+        # footnote, possibly continued over several lines.
+        item = LIST_ITEM.match(line)
+        footnote = FOOTNOTE_DEFINITION.match(line)
+        if item:
+            first_prefix = line[:item.end()]
+            spacing = item.group(3)
+            if not spacing or len(spacing.expandtabs(4)) > 4:
+                spacing = ' '
+            content_indent = indent + len(item.group(2)) + len(spacing)
+            list_content_indents.append(content_indent)
+            rest_prefix = ' ' * content_indent
+            content = line[item.end():]
+        elif footnote:
+            first_prefix = line[:footnote.end()]
+            rest_prefix = ' ' * (indent + 4)
+            content = line[footnote.end():]
+        else:
+            first_prefix = rest_prefix = line[:len(line) - len(line.lstrip())]
+            content = line.lstrip()
+        if not content.strip() or interrupts_paragraph(content):
+            # Empty list item, or one opening with a heading, quote, etc.
+            output.append(line)
+            index += 1
+            continue
+
+        end = index + 1
+        if (end < len(lines) and '|' in lines[end]
+                and TABLE_DELIMITER.match(lines[end])):
+            # Table whose rows don't start with a pipe.
+            while end < len(lines) and lines[end].strip():
+                end += 1
+            output.extend(lines[index:end])
+            index = end
+            continue
+        while end < len(lines) and lines[end].strip():
+            if SETEXT_UNDERLINE.match(lines[end]):
+                break
+            if interrupts_paragraph(lines[end]):
+                break
+            end += 1
+        if end < len(lines) and SETEXT_UNDERLINE.match(lines[end]):
+            # Setext heading (text underlined by === or ---).
+            output.extend(lines[index:end + 1])
+            index = end + 1
+            continue
+
+        paragraph = [content] + lines[index + 1:end]
+        prefix = first_prefix
+        segment_start = 0
+        for number, paragraph_line in enumerate(paragraph):
+            is_last = number == len(paragraph) - 1
+            trailing_backslashes = (len(paragraph_line)
+                                    - len(paragraph_line.rstrip('\\')))
+            hard_break_spaces = (paragraph_line.endswith('  ')
+                                 and paragraph_line.strip())
+            hard_break_backslash = trailing_backslashes % 2 == 1
+            if is_last or hard_break_spaces or hard_break_backslash:
+                segment_end = number + 1
+                segment_touched = None
+                if touched is not None:
+                    segment_touched = {
+                        line_number - index - segment_start
+                        for line_number in touched
+                        if index + segment_start <= line_number
+                        < index + segment_end}
+                filled = rewrap_segment(
+                    paragraph[segment_start:segment_end],
+                    lines[index + segment_start:index + segment_end],
+                    segment_touched, prefix, rest_prefix, width)
+                if (hard_break_spaces and not is_last
+                        and not filled[-1].endswith('  ')):
+                    filled[-1] += '  '
+                output.extend(filled)
+                prefix = rest_prefix
+                segment_start = segment_end
+        index = end
+    return output
+
+
+def rewrap_text(text, width, touched_line_numbers=None):
+    """
+    Re-wrap the contents of a Markdown file: all of it, or with
+    `touched_line_numbers` (1-based), only the paragraphs containing those
+    lines.
+    """
+    newline = '\r\n' if '\r\n' in text else '\n'
+    lines = text.splitlines()
+    front_matter = []
+    if lines and lines[0].strip() == '---':
+        for end in range(1, len(lines)):
+            if lines[end].strip() in ('---', '...'):
+                front_matter = lines[:end + 1]
+                lines = lines[end + 1:]
+                break
+    touched = None
+    if touched_line_numbers is not None:
+        touched = {number - 1 - len(front_matter)
+                   for number in touched_line_numbers}
+    result = newline.join(front_matter + rewrap_lines(lines, width, touched))
+    if text.endswith(('\n', '\r')):
+        result += newline
+    return result
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('paths', nargs='+', metavar='FILE',
+                        help='Markdown files to re-wrap, or - for standard '
+                             'input (written to standard output)')
+    parser.add_argument('--width', type=int, default=79,
+                        help='maximum line width in characters '
+                             '(default: 79)')
+    parser.add_argument('--lines', metavar='RANGES',
+                        help='only re-wrap paragraphs containing these lines, '
+                             'as comma-separated 1-based numbers or ranges '
+                             '(e.g. 3-7,12), changing as few lines as '
+                             'possible; requires a single FILE')
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--check', action='store_true',
+                      help='write nothing; exit with status 1 if any file '
+                           'would change')
+    mode.add_argument('--diff', action='store_true',
+                      help='write nothing; print a unified diff of the '
+                           'changes')
+    arguments = parser.parse_args()
+
+    touched_line_numbers = None
+    if arguments.lines is not None:
+        if len(arguments.paths) != 1:
+            parser.error('--lines requires exactly one FILE')
+        touched_line_numbers = set()
+        for part in arguments.lines.split(','):
+            if not part.strip():
+                continue
+            first, _, last = part.partition('-')
+            touched_line_numbers.update(
+                range(int(first), int(last or first) + 1))
+
+    any_changed = False
+    for path in arguments.paths:
+        if path == '-':
+            sys.stdout.write(rewrap_text(sys.stdin.read(), arguments.width,
+                                         touched_line_numbers))
+            continue
+        with open(path, encoding='utf-8', newline='') as file:
+            original = file.read()
+        rewrapped = rewrap_text(original, arguments.width,
+                                touched_line_numbers)
+        # Only warn about lines this script produced, not about headings,
+        # code, tables, etc. that are deliberately left as they were.
+        original_lines = set(original.splitlines())
+        for number, line in enumerate(rewrapped.splitlines(), start=1):
+            if (display_width(line.rstrip()) > arguments.width
+                    and line not in original_lines):
+                print(f'{path}:{number}: still longer than '
+                      f'{arguments.width} characters (left as is)',
+                      file=sys.stderr)
+        if rewrapped == original:
+            continue
+        any_changed = True
+        if arguments.check:
+            print(f'Would re-wrap {path}')
+        elif arguments.diff:
+            sys.stdout.writelines(difflib.unified_diff(
+                original.splitlines(keepends=True),
+                rewrapped.splitlines(keepends=True),
+                fromfile=path, tofile=path))
+        else:
+            with open(path, 'w', encoding='utf-8', newline='') as file:
+                file.write(rewrapped)
+            print(f'Re-wrapped {path}')
+    if arguments.check and any_changed:
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
