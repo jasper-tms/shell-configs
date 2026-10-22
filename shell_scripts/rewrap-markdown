@@ -49,11 +49,14 @@ HTML_BLOCK_TAGS = (
     'link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|'
     'picture|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|'
     'track|ul|script|pre|style|textarea|img|video|audio|br')
+HTML_BLOCK_START = (r'^\s*(<!--|<\?|<![A-Za-z]|<!\[CDATA\['
+                    r'|</?(?:' + HTML_BLOCK_TAGS + r')(?:\s|/?>|$)')
 HTML_BLOCK = re.compile(
-    r'^\s*(<!--|<\?|<![A-Za-z]|<!\[CDATA\['
-    r'|</?(?:' + HTML_BLOCK_TAGS + r')(?:\s|/?>|$)'
-    r'|</?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?/?>\s*$)',
+    HTML_BLOCK_START + r'|</?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?/?>\s*$)',
     re.IGNORECASE)
+# A line holding just some other tag starts an HTML block only after a blank
+# line; in the middle of a paragraph it is inline HTML.
+HTML_BLOCK_INTERRUPTING = re.compile(HTML_BLOCK_START + ')', re.IGNORECASE)
 INLINE_HTML_TAG = re.compile(r'</?[A-Za-z][A-Za-z0-9-]*(?:\s+[^<>]*)?/?>')
 # A word that, if it began a line, could make Markdown start a new block
 # (a heading, list item, block quote, fence, table, or HTML block) in the
@@ -195,6 +198,31 @@ def interrupts_paragraph(line):
                 or MATH_FENCE.match(line))
 
 
+def interrupts_paragraph_continuation(line, paragraph_indent):
+    """
+    Whether `line`, coming right after a line of a paragraph whose content
+    starts at column `paragraph_indent`, ends that paragraph. Stricter than
+    interrupts_paragraph, following CommonMark: a line indented 4 or more
+    past the paragraph is always continuation text, and a new list can only
+    interrupt a paragraph with a non-empty bullet item or an item numbered 1,
+    so a wrapped sentence whose line happens to start with "302." or "-"
+    stays part of the paragraph.
+    """
+    if indentation(line) >= paragraph_indent + 4:
+        return False
+    item = LIST_ITEM.match(line)
+    if item:
+        if indentation(line) < paragraph_indent:
+            # A sibling of an enclosing list item.
+            return True
+        if not line[item.end():].strip():
+            return False
+        return bool(re.fullmatch(r'[-+*]|0*1[.)]', item.group(2)))
+    if HTML_BLOCK.match(line):
+        return bool(HTML_BLOCK_INTERRUPTING.match(line))
+    return interrupts_paragraph(line)
+
+
 def rewrap_lines(lines, width, touched=None):
     """
     Re-wrap a list of Markdown lines (without newlines). `touched` is None
@@ -325,14 +353,17 @@ def rewrap_lines(lines, width, touched=None):
                 spacing = ' '
             content_indent = indent + len(item.group(2)) + len(spacing)
             list_content_indents.append(content_indent)
+            paragraph_indent = content_indent
             rest_prefix = ' ' * content_indent
             content = line[item.end():]
         elif footnote:
             first_prefix = line[:footnote.end()]
             rest_prefix = ' ' * (indent + 4)
+            paragraph_indent = indent + 4
             content = line[footnote.end():]
         else:
             first_prefix = rest_prefix = line[:len(line) - len(line.lstrip())]
+            paragraph_indent = indent
             content = line.lstrip()
         if not content.strip() or interrupts_paragraph(content):
             # Empty list item, or one opening with a heading, quote, etc.
@@ -352,7 +383,8 @@ def rewrap_lines(lines, width, touched=None):
         while end < len(lines) and lines[end].strip():
             if SETEXT_UNDERLINE.match(lines[end]):
                 break
-            if interrupts_paragraph(lines[end]):
+            if interrupts_paragraph_continuation(lines[end],
+                                                 paragraph_indent):
                 break
             end += 1
         if end < len(lines) and SETEXT_UNDERLINE.match(lines[end]):
