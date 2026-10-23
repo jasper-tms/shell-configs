@@ -8,8 +8,13 @@ it, committed or not:
 
 ```bash
 git worktree list
-git -C <other-worktree> diff --stat <source-branch> -- <resource paths>
+git diff --stat <source-branch>...<other-branch> -- <resource paths>   # its commits
+git -C <other-worktree> status --short -- <resource paths>             # uncommitted
 ```
+
+(The three dots compare with where the branch left the source branch. A plain
+`diff <source-branch>` would also show every change made to the source branch
+since, which looks like a conflict but isn't one.)
 
 If one has, don't deploy over it: coordinate with the agent working there, or
 discuss it with the user, so that branches don't keep replacing each other's
