@@ -20,10 +20,10 @@ three prompts under each heading, each annotated with its score:
 
 ```markdown
 ## Should trigger
-1. "<prompt>": X/2 Haiku and Y/2 Sonnet
+1. "<prompt>": X/2 Haiku 5.5 and Y/2 Sonnet 5.5
 
 ## Should not trigger
-1. "<prompt>": X/2 Haiku and Y/2 Sonnet
+1. "<prompt>": X/2 Haiku 5.5 and Y/2 Sonnet 5.5
 ```
 
 Two rules make the fixture worth trusting:
@@ -62,11 +62,13 @@ Locate that file by its globally-unique and working-directory-independent
 ```bash
 transcript=$(ls ~/.claude/projects/*/*/subagents/agent-<agentId>.jsonl 2>/dev/null)
 grep -q '"skill":"<skill-name-under-test>"' "$transcript" && echo LOADED || echo not-loaded
+grep -o '"message":{"model":"[^"]*"' "$transcript" | sort -u
 ```
 
 Count only agents whose transcript loaded the skill under test, ignoring other
 skills the task legitimately pulls in (like a code-formatting skill). Record
-the result per prompt in the format `"<prompt>": X/2 Haiku and Y/2 Sonnet`.
+the result per prompt in the fixture's format, naming the model versions the
+second grep reports, not the ones the alias is assumed to mean.
 
 ## Fixing a description that fails its should-trigger prompts
 
