@@ -8,8 +8,10 @@ Only paragraph text (including text in list items, footnotes, and block
 quotes) is re-wrapped. Everything whose line breaks carry meaning is left
 exactly as written: front matter, fenced and indented code blocks, math
 blocks, headings, tables, HTML blocks, link reference definitions,
-horizontal rules, and hard line breaks (two trailing spaces or a trailing
-backslash).
+horizontal rules, hard line breaks (two trailing spaces or a trailing
+backslash), and skill index listings: a `# Skill index for ...` heading and
+the lines up to the next blank line, which are copies of a generated
+INDEX.md whose one-line entries must stay identical to it.
 
 Usage:
     rewrap-markdown FILE.md [FILE.md ...]   # rewrite files in place
@@ -35,6 +37,7 @@ LINK_REFERENCE_DEFINITION = re.compile(r'^\s{0,3}\[[^\]^][^\]]*\]:\s*\S')
 FENCE_OPEN = re.compile(
     r'^\s*(?:' + LIST_MARKER + r'\s+|>\s?)*(`{3,}|~{3,})(.*)$')
 ATX_HEADING = re.compile(r'^\s*#{1,6}(\s|$)')
+SKILL_INDEX_HEADING = re.compile(r'^\s*#{1,6}\s+Skill index for ')
 SETEXT_UNDERLINE = re.compile(r'^\s{0,3}(=+|-+)\s*$')
 THEMATIC_BREAK = re.compile(r'^\s*([-*_])(\s*\1){2,}\s*$')
 BLOCKQUOTE = re.compile(r'^(\s*>) ?')
@@ -322,8 +325,11 @@ def rewrap_lines(lines, width, touched=None):
             index = end
             continue
 
-        # Blocks that are copied verbatim until the next blank line.
-        if HTML_BLOCK.match(line) or TABLE_ROW.match(line):
+        # Blocks that are copied verbatim until the next blank line. A skill
+        # index listing is a copy of a generated INDEX.md, so wrapping it
+        # would make it differ from the file it copies.
+        if (HTML_BLOCK.match(line) or TABLE_ROW.match(line)
+                or SKILL_INDEX_HEADING.match(line)):
             end = index
             if line.lstrip().startswith('<!--'):
                 while end < len(lines) and '-->' not in lines[end]:
