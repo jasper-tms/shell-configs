@@ -157,7 +157,6 @@
       "Bash(pip3 install *)",
       "Bash(python -m pip install *)",
       "Bash(python3 -m pip install *)",
-      "Bash(brew install*)",
       "Bash(git restore)",
       "Bash(git restore *)",
       "Bash(git reset --hard)",
@@ -238,6 +237,7 @@
       "Bash(* .env *)"
     ],
     "ask": [
+      "Bash(brew install*)",
       "Bash(*API_KEY*)",
       "Bash(*api_key*)",
       "Bash(chmod *-R*)",
