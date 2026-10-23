@@ -34,6 +34,10 @@ worktree. As the very last thing that you say before you end your first turn
 (whether that's to ask the user for input or telling them that you've finished
 the task), say to the user `\n\nYou may want to run "/name <branch-name>"`
 
+Before changing a live backend resource that every local or online deployment
+shares, such as database rules or cloud functions, read
+[changing-deployed-backend-resources.md](changing-deployed-backend-resources.md).
+
 ## Finishing
 
 Only once the user confirms they're satisfied with the work, it has been
