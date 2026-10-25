@@ -23,6 +23,8 @@ Usage:
 A git pre-commit hook (git-hooks/pre-commit.d/10-rewrap-skill-markdown.sh in
 this repo) runs this with `--lines` on every staged Markdown file that belongs
 to a skill, so a commit only re-wraps the paragraphs it touches.
+
+Tests for both live in shell_scripts/tests/test_rewrap_markdown.py.
 """
 import argparse
 import difflib
@@ -61,12 +63,18 @@ HTML_BLOCK = re.compile(
 # line; in the middle of a paragraph it is inline HTML.
 HTML_BLOCK_INTERRUPTING = re.compile(HTML_BLOCK_START + ')', re.IGNORECASE)
 INLINE_HTML_TAG = re.compile(r'</?[A-Za-z][A-Za-z0-9-]*(?:\s+[^<>]*)?/?>')
+# An inline or reference-style link, `[text](url)` or `[text][label]`.
+INLINE_LINK = re.compile(r'\[[^\[\]\n]*\](?:\([^()\s]*\)|\[[^\[\]\n]*\])')
 # A word that, if it began a line, could make Markdown start a new block
 # (a heading, list item, block quote, fence, table, or HTML block) in the
 # middle of a paragraph.
 BLOCK_STARTING_WORD = re.compile(
     r'(#{1,6}|[-+*]|\d{1,9}[.)]|=+|-+|_+)$|>|\||`{3}|~{3}|<[A-Za-z/!?]'
     r'|\$\$|\[\^')
+# A code span or link is kept whole on the next line, so it stays searchable
+# in the raw file, unless that would leave more than this many columns empty
+# at the end of the line before it.
+MOST_EMPTY_COLUMNS_BEFORE_SPAN = 20
 
 
 def display_width(text):
@@ -89,7 +97,8 @@ def split_into_words(text):
     """
     Split paragraph text at spaces, but never inside an inline code span,
     an inline HTML tag, or right after a backslash escape, since breaking
-    there would change how the text renders.
+    there would change how the text renders, nor inside a link, so it stays
+    searchable (fill may still break code spans and links when needed).
     """
     words = []
     current = []
@@ -115,6 +124,10 @@ def split_into_words(text):
               and (match := INLINE_HTML_TAG.match(text, position))):
             current.append(match.group())
             position = match.end()
+        elif (character == '['
+              and (match := INLINE_LINK.match(text, position))):
+            current.append(match.group())
+            position = match.end()
         else:
             current.append(character)
             position += 1
@@ -128,7 +141,9 @@ def fill(words, first_prefix, rest_prefix, width):
     Greedily pack `words` into lines no wider than `width` (prefix
     included). A word that alone is too long gets its own overlong line,
     except that a code span or HTML tag too long for any line is broken at
-    its spaces (which renders identically).
+    its spaces (which renders identically). A code span or link is also
+    broken at its spaces when moving it whole to the next line would leave
+    more than MOST_EMPTY_COLUMNS_BEFORE_SPAN columns empty.
     """
     pieces = []
     for word in words:
@@ -137,12 +152,21 @@ def fill(words, first_prefix, rest_prefix, width):
         else:
             pieces.append(word)
     lines = [[]]
-    for word in pieces:
+    position = 0
+    while position < len(pieces):
+        word = pieces[position]
+        position += 1
         line = lines[-1]
         prefix = first_prefix if len(lines) == 1 else rest_prefix
         if (not line
                 or display_width(prefix + ' '.join(line + [word])) <= width):
             line.append(word)
+            continue
+        empty_columns = width - display_width(prefix + ' '.join(line))
+        if (' ' in word and ('`' in word or '[' in word)
+                and empty_columns > MOST_EMPTY_COLUMNS_BEFORE_SPAN):
+            pieces[position:position] = [
+                piece for piece in word.split(' ') if piece]
             continue
         new_line = [word]
         # Pull words down from the previous line until the new line no
@@ -167,7 +191,8 @@ def rewrap_segment(texts, originals, touched, prefix, rest_prefix, width):
     re-wrap the whole stretch, or the set of offsets into it that changed,
     in which case only the changed lines plus one line on either side are
     re-wrapped (so the edit can absorb words from, or push words onto, its
-    neighbors), and all other lines are left exactly as written.
+    neighbors), extended as far as the change cascades, and all other lines
+    are left exactly as written.
     """
     if touched is not None and not touched:
         return list(originals)
@@ -177,19 +202,32 @@ def rewrap_segment(texts, originals, touched, prefix, rest_prefix, width):
         start = max(0, min(touched) - 1)
         end = min(len(texts), max(touched) + 2)
         last_touched = max(touched)
-    words = split_into_words(
-        ' '.join(text.strip() for text in texts[start:end]))
-    filled = fill(words, prefix if start == 0 else rest_prefix, rest_prefix,
-                  width)
-    # Keep the line after the edit as written if the new line breaks already
-    # line up with the original ones there.
-    for number in range(len(filled) - 1):
-        remaining = ' '.join(filled[number + 1:]).split()
-        for original_number in range(last_touched + 1, end):
-            if ' '.join(texts[original_number:end]).split() == remaining:
-                return (originals[:start] + filled[:number + 1]
-                        + originals[original_number:])
-    return originals[:start] + filled + originals[end:]
+    # Pull in earlier lines that have room for the first word of the line
+    # after them.
+    while start > 0:
+        first_word = split_into_words(texts[start].strip())[:1]
+        if not first_word or display_width(
+                originals[start - 1].rstrip() + ' ' + first_word[0]) > width:
+            break
+        start -= 1
+    while True:
+        words = split_into_words(
+            ' '.join(text.strip() for text in texts[start:end]))
+        filled = fill(words, prefix if start == 0 else rest_prefix,
+                      rest_prefix, width)
+        # Keep the lines after the edit as written once the new line breaks
+        # line up with the original ones there.
+        for number in range(len(filled) - 1):
+            remaining = ' '.join(filled[number + 1:]).split()
+            for original_number in range(last_touched + 1, end):
+                if ' '.join(texts[original_number:end]).split() == remaining:
+                    return (originals[:start] + filled[:number + 1]
+                            + originals[original_number:])
+        if end == len(texts):
+            return originals[:start] + filled
+        # The new line breaks don't line up yet, so the change cascades onto
+        # the next line too.
+        end += 1
 
 
 def interrupts_paragraph(line):
