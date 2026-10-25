@@ -55,6 +55,11 @@ in the global `_SKILL_LISTING.md`, and its frontmatter is validated — **if and
 only if it already contains an `INDEX.md`**. Creating that file once (a single
 `build_index.py` run) opts a new folder in; deleting it opts out.
 
+The exception is a folder inside a linked git worktree (e.g. a
+`worktree_<branch>/` checkout made for parallel development): its `INDEX.md` is
+just a branch copy of the main checkout's, so it is always skipped - not
+regenerated, not given a listing section.
+
 `~/.claude/skills/` itself is always left **without** an `INDEX.md`: it is a
 symlink farm plus unversioned third-party skills, not in any repo. The machine
 instructions may name further folders that contain `SKILL.md` files but are
@@ -179,15 +184,22 @@ conflict (aborted, untouched), and any credential failures from `pullrepos`.
 ### 2. Regenerate every INDEX.md on disk
 
 Find every folder that already has an `INDEX.md` beside a set of skills and
-rebuild it. A folder without one is opted out, so it is skipped (see "Which
-folders are indexed"):
+rebuild it. A folder without one is opted out, and a folder inside a linked git
+worktree is a branch copy, so both are skipped (see "Which folders are
+indexed"):
 
 ```bash
 build_index=<this skill's directory>/build_index.py
+# Only in a linked worktree do git's own directory and the shared one differ.
+is_linked_worktree() {
+    [ "$(git -C "$1" rev-parse --path-format=absolute --git-dir 2>/dev/null)" != \
+      "$(git -C "$1" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" ]
+}
 find ~/repos -maxdepth 6 -type f -name INDEX.md \
     -not -path '*/.git/*' -not -path '*/node_modules/*' | while read -r index; do
     folder=$(dirname "$index")
     ls "$folder"/*/SKILL.md >/dev/null 2>&1 || continue  # not a skill index; skip
+    is_linked_worktree "$folder" && continue             # worktree copy; skip
     python3 "$build_index" "$folder"
 done
 ```
@@ -207,11 +219,11 @@ skill by **name** under its real-folder heading, plus symlink/consumer notes.
 It carries names and locations only - no descriptions (those live in the
 `INDEX.md` files). This step needs judgment:
 
-- Every folder that has an `INDEX.md` (i.e. every indexed folder) should have a
-  section in the listing. If one is missing — a folder was opted in but never
-  listed — add a heading with its real path and its skill names, and note it
-  under **Needs attention** so a human can write the section's consumer/symlink
-  annotation.
+- Every folder that has an `INDEX.md` (i.e. every indexed folder, so not one
+  inside a linked worktree) should have a section in the listing. If one is
+  missing — a folder was opted in but never listed — add a heading with its
+  real path and its skill names, and note it under **Needs attention** so a
+  human can write the section's consumer/symlink annotation.
 - Within each section, every skill directory that exists on disk must appear
   under the heading. Add any missing; remove any whose directory is gone.
 - Skip any skill directory git ignores (a privately symlinked skill hidden via
