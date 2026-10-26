@@ -46,7 +46,7 @@ if 'fanc' in env_name:
     import fanc
     client = fanc.get_caveclient()
     print('import fanc; client = fanc.get_caveclient()')
-elif 'the-banc' in env_name:
+elif 'banc' in env_name:
     import logging
     logging.basicConfig(level=logging.ERROR)
     import banc
