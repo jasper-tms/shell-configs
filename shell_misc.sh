@@ -7,6 +7,11 @@ if ${IS_LINUX:=false}; then
     # GNU ls only colorizes when given --color; the LS_COLORS palette above does
     # nothing on its own (unlike BSD ls, colorized via CLICOLOR in the mac block).
     alias ls='ls --color=auto'
+    # uutils ls (Ubuntu's default since 25.10) checks $TERM against its own list
+    # of color terminals, which lacks Apple Terminal's nsterm, so pass it one it knows.
+    if [ "$TERM" = nsterm ] && ls --version 2>/dev/null | grep -q uutils; then
+        alias ls='TERM=xterm-256color ls --color=auto'
+    fi
 
     # Remap Caps Lock to Ctrl. X11 uses setxkbmap; under Wayland setxkbmap only
     # reaches XWayland apps, so use gsettings instead. Check Wayland first,
