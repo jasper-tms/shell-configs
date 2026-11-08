@@ -1,6 +1,6 @@
 ---
 name: youtube-apis
-description: Load when fetching data (not video files) from YouTube or YouTube Music (videos, channels, playlists, liked songs), when a YouTube Data API key fails (`API_KEY_INVALID`, 403, quota, seems expired) or needs setting up, when a private playlist can't be read, or when a YouTube Music cookie needs refreshing.
+description: Load when using the YouTube or YouTube Music APIs, or when a YouTube API key or YouTube Music cookie fails.
 ---
 
 # YouTube APIs
