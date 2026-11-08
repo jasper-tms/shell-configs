@@ -28,10 +28,11 @@ Usage:
     post-comment.py <issue-url> --snapshot <snapshot-file>
     post-comment.py <issue-url> <message-file> --session-id <uuid>
         [--snapshot <snapshot-file>] [--author agent|orchestrator]
-        [--final-label <label>|none]
+        [--final-label <label>|none|keep]
 
 `--final-label none` removes every workflow label, for the final comment on
-a closed issue. The device name comes from $AUTONOMOUS_ISSUE_DEVICE_NAME,
+a closed issue. `--final-label keep` leaves the labels as they are, for a
+notice that hands nothing off. The device name comes from $AUTONOMOUS_ISSUE_DEVICE_NAME,
 which an orchestrator may set, falling back to the lowercased hostname.
 """
 import argparse
@@ -107,7 +108,7 @@ def main() -> None:
     parser.add_argument('--snapshot', type=Path)
     parser.add_argument('--author', choices=HEADERS, default='agent')
     parser.add_argument('--final-label', default='ready-for-review',
-                        choices=[*WORKFLOW_LABELS, 'none'])
+                        choices=[*WORKFLOW_LABELS, 'none', 'keep'])
     parser.add_argument('--session-id')
     arguments = parser.parse_args()
 
@@ -164,13 +165,14 @@ def main() -> None:
     comment_url = gh('issue', 'comment', number, '--repo', repository,
                      '--body-file', '-', input=body).strip()
 
-    label_arguments = []
-    for label in WORKFLOW_LABELS:
-        if label != arguments.final_label:
-            label_arguments += ['--remove-label', label]
-    if arguments.final_label != 'none':
-        label_arguments += ['--add-label', arguments.final_label]
-    gh('issue', 'edit', number, '--repo', repository, *label_arguments)
+    if arguments.final_label != 'keep':
+        label_arguments = []
+        for label in WORKFLOW_LABELS:
+            if label != arguments.final_label:
+                label_arguments += ['--remove-label', label]
+        if arguments.final_label != 'none':
+            label_arguments += ['--add-label', arguments.final_label]
+        gh('issue', 'edit', number, '--repo', repository, *label_arguments)
 
     # Remove the claim comment the orchestrator posted for this session
     # when it started (see `claim_issue()` in the orchestrator's poll.py).
