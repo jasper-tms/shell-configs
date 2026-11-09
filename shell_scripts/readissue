@@ -2,6 +2,12 @@
 """Print the full thread (body + all comments) for one or more GitHub issues
 or pull requests -- as readable Markdown, or as JSON -- in a single API call.
 
+For pull requests the thread also includes everything from code review: review
+summaries (approve / request changes / comment, with their text) and line
+comments on the diff (with file, line, a few lines of the code they point at,
+and every reply), merged into one timeline with the ordinary comments. The
+header also names the head and base branches.
+
 Designed to be run by an agent (or a human) that wants to read several issues'
 complete discussions at once without fumbling with multiple `gh` commands.
 
@@ -34,7 +40,11 @@ there are, so reading 40 issues costs the same round trip as reading one.
 With --json, prints a JSON array of cleaned issue objects using the SAME schema
 as backup_github_issues' `_clean_and_combine.py` (number, title, html_url,
 state, user, labels, created_at, updated_at, closed_at, body, is_pull_request,
-comments[]), so the two tools' output is interchangeable.
+comments[]), so the two tools' output is interchangeable. Pull requests carry
+these extra keys on top: head_ref, base_ref, is_draft, merged_at, reviews[]
+(user, html_url, state, submitted_at, body) and review_threads[] (path, line,
+start_line, original_line, original_start_line, is_resolved, is_outdated,
+diff_hunk, comments[]).
 
 Requires the GitHub CLI (`gh`) to be installed and authenticated; it provides
 the auth for the underlying API call.
@@ -49,6 +59,17 @@ import sys
 # at 100; issues with more than this are reported as truncated rather than
 # paginated (vanishingly rare for the repos this is used on).
 COMMENTS_PER_ISSUE = 100
+# Pull-request review limits, with the same truncation reporting. GitHub
+# rejects a query whose worst-case node count (threads x comments per thread,
+# summed over every requested number) exceeds 500,000, so comments per thread
+# stays modest to keep ranges like '1-100' working.
+REVIEWS_PER_PULL_REQUEST = 100
+THREADS_PER_PULL_REQUEST = 100
+COMMENTS_PER_THREAD = 25
+# Lines of diff shown above each line-comment thread, ending at the commented
+# line (GitHub's diff hunk runs from the hunk start, which can be hundreds of
+# lines for a new file).
+DIFF_CONTEXT_LINES = 10
 
 USAGE = (
     "Usage: readissue <repo> <numbers> [--json]\n"
@@ -233,6 +254,23 @@ _THREAD_FIELDS = (
     "}"
 )
 
+# Extra fields fetched only for pull requests: branches, review summaries, and
+# line comments grouped into their threads.
+_PULL_REQUEST_FIELDS = (
+    "headRefName baseRefName isDraft mergedAt "
+    f"reviews(first:{REVIEWS_PER_PULL_REQUEST}){{"
+    "totalCount nodes{author{login} url state submittedAt body}"
+    "} "
+    f"reviewThreads(first:{THREADS_PER_PULL_REQUEST}){{"
+    "totalCount nodes{path line startLine originalLine originalStartLine "
+    "isResolved isOutdated "
+    f"comments(first:{COMMENTS_PER_THREAD}){{"
+    "totalCount nodes{author{login} url createdAt updatedAt body diffHunk}"
+    "}"
+    "}"
+    "}"
+)
+
 
 def build_query(owner, name, numbers):
     """Build one GraphQL query that fetches every requested number via
@@ -245,7 +283,7 @@ def build_query(owner, name, numbers):
             f"n{number}: issueOrPullRequest(number:{number})"
             f"{{__typename "
             f"... on Issue{{{_THREAD_FIELDS}}} "
-            f"... on PullRequest{{{_THREAD_FIELDS}}}}}"
+            f"... on PullRequest{{{_THREAD_FIELDS} {_PULL_REQUEST_FIELDS}}}}}"
         )
     return (
         "query{repository(owner:"
@@ -267,8 +305,19 @@ def _login(holder):
 def clean_node(node):
     """Normalize a GraphQL issueOrPullRequest node into the cleaned schema used
     by backup_github_issues' `_clean_and_combine.py`, so Markdown rendering and
-    --json output (and, later, the backup itself) can share one shape."""
-    return {
+    --json output (and, later, the backup itself) can share one shape. Pull
+    requests get extra keys (branches, reviews, review threads) on top."""
+
+    def clean_comment(comment):
+        return {
+            "user": _login(comment),
+            "html_url": comment.get("url"),
+            "created_at": comment.get("createdAt"),
+            "updated_at": comment.get("updatedAt"),
+            "body": comment.get("body"),
+        }
+
+    cleaned = {
         "number": node.get("number"),
         "title": node.get("title"),
         "html_url": node.get("url"),
@@ -286,29 +335,152 @@ def clean_node(node):
         "body": node.get("body"),
         "is_pull_request": node.get("__typename") == "PullRequest",
         "comments": [
-            {
-                "user": _login(comment),
-                "html_url": comment.get("url"),
-                "created_at": comment.get("createdAt"),
-                "updated_at": comment.get("updatedAt"),
-                "body": comment.get("body"),
-            }
+            clean_comment(comment)
             for comment in (node.get("comments") or {}).get("nodes", [])
         ],
     }
+    if not cleaned["is_pull_request"]:
+        return cleaned
+
+    review_threads = []
+    for thread in (node.get("reviewThreads") or {}).get("nodes", []):
+        thread_comments = (thread.get("comments") or {}).get("nodes", [])
+        review_threads.append({
+            "path": thread.get("path"),
+            "line": thread.get("line"),
+            "start_line": thread.get("startLine"),
+            "original_line": thread.get("originalLine"),
+            "original_start_line": thread.get("originalStartLine"),
+            "is_resolved": thread.get("isResolved"),
+            "is_outdated": thread.get("isOutdated"),
+            # Every comment in a thread shares the first one's code context.
+            "diff_hunk": (
+                thread_comments[0].get("diffHunk") if thread_comments else None
+            ),
+            "comments": [clean_comment(comment) for comment in thread_comments],
+        })
+    cleaned.update({
+        "head_ref": node.get("headRefName"),
+        "base_ref": node.get("baseRefName"),
+        "is_draft": node.get("isDraft"),
+        "merged_at": node.get("mergedAt"),
+        "reviews": [
+            {
+                "user": _login(review),
+                "html_url": review.get("url"),
+                "state": (review.get("state") or "").lower() or None,
+                "submitted_at": review.get("submittedAt"),
+                "body": review.get("body"),
+            }
+            for review in (node.get("reviews") or {}).get("nodes", [])
+        ],
+        "review_threads": review_threads,
+    })
+    return cleaned
 
 
-def format_markdown(issue, total_comments):
+def truncation_notes(node):
+    """Return a list of human-readable notes, one per part of this issue or
+    pull request that had more items on GitHub than were fetched. Empty when
+    nothing was cut off."""
+    notes = []
+
+    def check(connection, limit, what):
+        total = (connection or {}).get("totalCount", 0)
+        if total > limit:
+            notes.append(
+                f"{total - limit} more {what} not shown "
+                f"(only the first {limit} of {total} are fetched)"
+            )
+
+    check(node.get("comments"), COMMENTS_PER_ISSUE, "comment(s)")
+    if node.get("__typename") == "PullRequest":
+        check(node.get("reviews"), REVIEWS_PER_PULL_REQUEST, "review(s)")
+        check(
+            node.get("reviewThreads"),
+            THREADS_PER_PULL_REQUEST,
+            "line-comment thread(s)",
+        )
+        for thread in (node.get("reviewThreads") or {}).get("nodes", []):
+            check(
+                thread.get("comments"),
+                COMMENTS_PER_THREAD,
+                f"line comment(s) in a thread on {thread.get('path')}",
+            )
+    return notes
+
+
+def format_review_thread(thread, index):
+    """Render one line-comment thread: a heading naming the file and line(s),
+    the tail of the diff it points at, then every comment in order."""
+    line = thread["line"]
+    start_line = thread["start_line"]
+    if line is None:
+        # The commented code no longer exists in the latest diff, so GitHub
+        # only knows where it was in the commit the comment was made on.
+        line = thread["original_line"]
+        start_line = thread["original_start_line"]
+    if line is None:
+        location = "(file-level)"
+    elif start_line is not None and start_line != line:
+        location = f"lines {start_line}–{line}"
+    else:
+        location = f"line {line}"
+    flags = []
+    if thread["is_resolved"]:
+        flags.append("resolved")
+    if thread["is_outdated"]:
+        flags.append("outdated: the code has changed since")
+    flag_suffix = f" [{', '.join(flags)}]" if flags else ""
+
+    lines = [
+        f"### Line comment thread {index} — `{thread['path']}` "
+        f"{location}{flag_suffix}"
+    ]
+    hunk = (thread["diff_hunk"] or "").rstrip("\n")
+    if hunk:
+        hunk_lines = hunk.split("\n")
+        if len(hunk_lines) > DIFF_CONTEXT_LINES:
+            hunk_lines = hunk_lines[-DIFF_CONTEXT_LINES:]
+        # The fence must be longer than any backtick run inside the diff (a
+        # Markdown file's diff can itself contain ``` fences).
+        longest_run = max(
+            (len(run) for run in re.findall(r"`+", "\n".join(hunk_lines))),
+            default=0,
+        )
+        fence = "`" * max(3, longest_run + 1)
+        lines.append(f"{fence}diff")
+        lines.extend(hunk_lines)
+        lines.append(fence)
+    for comment in thread["comments"]:
+        author = comment["user"] or "(unknown)"
+        lines.append(f"#### @{author} · {comment['created_at'] or '?'}")
+        comment_body = (comment["body"] or "").strip()
+        lines.append(comment_body if comment_body else "_(empty comment)_")
+    lines.append("")
+    return lines
+
+
+def format_markdown(issue, total_comments, notes):
     """Render one cleaned issue dict as a Markdown block. `total_comments` is
-    the true comment count on GitHub, which can exceed the number fetched."""
-    kind = "Pull Request" if issue["is_pull_request"] else "Issue"
+    the true comment count on GitHub, which can exceed the number fetched;
+    `notes` lists anything else cut off (see `truncation_notes()`). Pull
+    requests get one timeline merging comments, reviews and line comments."""
+    is_pull_request = issue["is_pull_request"]
+    kind = "Pull Request" if is_pull_request else "Issue"
     state = (issue["state"] or "").upper()
+    if is_pull_request and issue["is_draft"] and state == "OPEN":
+        state = "DRAFT"
     state_suffix = f" [{state}]" if state else ""
     title = issue["title"] or "(no title)"
 
     lines = [f"# {kind} #{issue['number']}: {title}{state_suffix}"]
 
     meta = f"by @{issue['user'] or '(unknown)'} · opened {issue['created_at'] or '?'}"
+    if is_pull_request:
+        meta += f" · branch `{issue['head_ref']}` into `{issue['base_ref']}`"
+        if issue["merged_at"]:
+            meta += f" · merged {issue['merged_at']}"
     if issue["labels"]:
         meta += " · labels: " + ", ".join(issue["labels"])
     lines.append(meta)
@@ -320,26 +492,62 @@ def format_markdown(issue, total_comments):
     lines.append(body if body else "_(no description)_")
     lines.append("")
 
-    fetched = issue["comments"]
-    if total_comments == 0:
+    # Each timeline entry is (timestamp, rendered lines). GitHub timestamps are
+    # all ISO 8601 in UTC, so they sort correctly as strings.
+    entries = []
+    for index, comment in enumerate(issue["comments"], start=1):
+        author = comment["user"] or "(unknown)"
+        comment_body = (comment["body"] or "").strip()
+        entries.append((comment["created_at"] or "", [
+            f"### Comment {index} — @{author} · {comment['created_at'] or '?'}",
+            comment_body if comment_body else "_(empty comment)_",
+            "",
+        ]))
+    review_count = 0
+    thread_count = 0
+    if is_pull_request:
+        for review in issue["reviews"]:
+            review_body = (review["body"] or "").strip()
+            # Leaving line comments creates a 'commented' review with no text
+            # of its own; its comments appear under their threads instead.
+            if not review_body and review["state"] in ("commented", "pending"):
+                continue
+            review_count += 1
+            author = review["user"] or "(unknown)"
+            verdict = (review["state"] or "?").replace("_", " ")
+            if review["state"] == "pending":
+                verdict += " (not yet submitted, visible only to its author)"
+            entries.append((review["submitted_at"] or "", [
+                f"### Review {review_count} — @{author} · {verdict} · "
+                f"{review['submitted_at'] or '?'}",
+                review_body if review_body else "_(no summary text)_",
+                "",
+            ]))
+        for thread in issue["review_threads"]:
+            thread_count += 1
+            first_time = thread["comments"][0]["created_at"] if thread["comments"] else ""
+            entries.append(
+                (first_time or "", format_review_thread(thread, thread_count))
+            )
+    entries.sort(key=lambda entry: entry[0])
+
+    if not entries and total_comments == 0:
         lines.append("_(no comments)_")
     else:
-        lines.append(f"## Comments ({total_comments})")
+        if is_pull_request:
+            lines.append(
+                f"## Timeline ({total_comments} comment(s), "
+                f"{review_count} review(s), "
+                f"{thread_count} line-comment thread(s))"
+            )
+        else:
+            lines.append(f"## Comments ({total_comments})")
         lines.append("")
-        for index, comment in enumerate(fetched, start=1):
-            author = comment["user"] or "(unknown)"
-            lines.append(
-                f"### Comment {index} — @{author} · {comment['created_at'] or '?'}"
-            )
-            comment_body = (comment["body"] or "").strip()
-            lines.append(comment_body if comment_body else "_(empty comment)_")
-            lines.append("")
-        if total_comments > len(fetched):
-            lines.append(
-                f"_… {total_comments - len(fetched)} more comment(s) not shown "
-                f"(only the first {COMMENTS_PER_ISSUE} are fetched)._"
-            )
-            lines.append("")
+        for _, entry_lines in entries:
+            lines.extend(entry_lines)
+    for note in notes:
+        lines.append(f"_… {note}._")
+        lines.append("")
     return "\n".join(lines).rstrip()
 
 
@@ -433,6 +641,7 @@ def main():
 
     cleaned_issues = []
     total_comment_counts = []
+    notes_per_issue = []
     missing = []
     for number in numbers:
         node = repository.get(f"n{number}")
@@ -443,29 +652,26 @@ def main():
         total_comment_counts.append(
             (node.get("comments") or {}).get("totalCount", 0)
         )
+        notes_per_issue.append(truncation_notes(node))
 
     if output_json:
         print(json.dumps(cleaned_issues, indent=2))
     else:
         blocks = [
-            format_markdown(issue, total)
-            for issue, total in zip(cleaned_issues, total_comment_counts)
+            format_markdown(issue, total, notes)
+            for issue, total, notes in zip(
+                cleaned_issues, total_comment_counts, notes_per_issue
+            )
         ]
         if blocks:
             print(("\n\n" + "-" * 72 + "\n\n").join(blocks))
 
-    truncated = [
-        issue["number"]
-        for issue, total in zip(cleaned_issues, total_comment_counts)
-        if total > len(issue["comments"])
-    ]
-    if truncated:
-        joined = ", ".join(f"#{number}" for number in truncated)
-        print(
-            f"readissue: note: {joined} have more than {COMMENTS_PER_ISSUE} "
-            f"comments; only the first {COMMENTS_PER_ISSUE} were fetched.",
-            file=sys.stderr,
-        )
+    for issue, notes in zip(cleaned_issues, notes_per_issue):
+        for note in notes:
+            print(
+                f"readissue: note: #{issue['number']}: {note}.",
+                file=sys.stderr,
+            )
     if missing:
         joined = ", ".join(f"#{number}" for number in missing)
         print(
