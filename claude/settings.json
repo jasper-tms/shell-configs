@@ -271,7 +271,8 @@
           {
             "type": "command",
             "command": "$HOME/.claude/hooks/gate-git-push.sh",
-            "if": "Bash(*git*push*)"
+            "if": "Bash(*git*push*)",
+            "timeout": 180
           }
         ]
       }

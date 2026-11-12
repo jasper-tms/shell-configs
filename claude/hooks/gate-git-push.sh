@@ -3,9 +3,9 @@
 #
 #   - push to a feature branch  ->  allow  (agent pushes on its own, no prompt),
 #                                          even inside a compound command
-#   - push to main/master/prod  ->  ask when a user is present; deny when headless
-#   - forced push               ->  ask when a user is present; deny when headless
-#   - push target unresolvable  ->  ask when a user is present; deny when headless
+#   - push to main/master/prod  ->  confirm with the user; deny when headless
+#   - forced push               ->  confirm with the user; deny when headless
+#   - push target unresolvable  ->  confirm with the user; deny when headless
 #   - not a git push at all      ->  stay silent, let the normal flow proceed
 #
 # "Headless" means a launcher exported CLAUDE_HEADLESS=1 (e.g. the tidy-repos
@@ -13,6 +13,13 @@
 # (an agent that knows nobody may be watching): there is no user to answer an
 # "ask", so a would-be ask becomes a hard deny rather than a tool call that
 # hangs on an unanswerable prompt.
+#
+# "Confirm with the user" is a desktop dialog the hook shows itself (macOS,
+# Linux with zenity or kdialog, Windows), not Claude Code's own "ask" prompt:
+# that prompt waits forever in a local terminal and hangs an unattended agent.
+# The dialog is denied after GATE_GIT_PUSH_DIALOG_SECONDS (default 120) without
+# an answer, and when no dialog can be shown (for example over SSH) the push is
+# denied straight away.
 #
 # A push with no refspec (bare `git push`, or `git push <remote>`) has an
 # implicit target, so the hook asks git itself what would be pushed: it resolves
@@ -210,12 +217,103 @@ done <<< "$segments"
 # No git push anywhere -> stay silent, let the normal flow proceed.
 [ "$any_push" = "1" ] || exit 0
 
-# Headless runs (a launcher exports CLAUDE_HEADLESS=1, e.g. the tidy-repos cron
-# run.sh, or a push is prefixed with CLAUDE_HEADLESS=1) have no user to answer
-# an "ask", so downgrade every would-be ask to a hard "deny". When a user is
-# present, keep the "ask" so a deliberate push to main just prompts.
-ask_or_deny() {  # $1 = ask reason (shown to the user), $2 = deny reason (shown to the agent)
-    if [ "${CLAUDE_HEADLESS:-}" = "1" ] || [ "$any_headless" = "1" ]; then emit deny "$2"; else emit ask "$1"; fi
+# How long the confirmation dialog waits for an answer before the push is denied.
+DIALOG_SECONDS="${GATE_GIT_PUSH_DIALOG_SECONDS:-120}"
+
+# Ask the user to confirm a push in a desktop dialog that gives up on its own
+# after DIALOG_SECONDS. Claude Code's own "ask" prompt waits forever in a local
+# terminal, which hangs an unattended agent; this dialog owns its own timeout.
+# Its "Defer" button hands the decision back to Claude Code's own prompt, for
+# when the user would rather answer there (that prompt then waits indefinitely).
+# $1 = question. Prints allow | deny | defer | timeout | unavailable.
+confirm_in_dialog() {
+    local title="Claude Code: confirm git push"
+    local message
+    message="$(printf '%s\n\nRepository: %s\n\nCommand:\n%s\n\nDenied automatically after %s seconds without an answer.' \
+        "$1" "$CWD" "$(printf '%s' "$command_string" | cut -c1-400)" "$DIALOG_SECONDS")"
+    local result="" status=0
+
+    case "$(uname -s)" in
+        Darwin)
+            command -v osascript >/dev/null 2>&1 || { echo unavailable; return; }
+            result="$(osascript - "$message" "$title" "$DIALOG_SECONDS" 2>/dev/null <<'APPLESCRIPT'
+on run arguments
+    set answer to display dialog (item 1 of arguments) with title (item 2 of arguments) buttons {"Deny", "Defer", "Allow"} default button "Deny" with icon caution giving up after ((item 3 of arguments) as integer)
+    if gave up of answer then return "timeout"
+    if button returned of answer is "Allow" then return "allow"
+    if button returned of answer is "Defer" then return "defer"
+    return "deny"
+end run
+APPLESCRIPT
+            )" || result=unavailable
+            ;;
+        MINGW* | MSYS* | CYGWIN*)
+            windows_popup "$message" "$title"; return ;;
+        *)
+            # Windows Subsystem for Linux: use the Windows dialog.
+            if grep -qi microsoft /proc/version 2>/dev/null && command -v powershell.exe >/dev/null 2>&1; then
+                windows_popup "$message" "$title"; return
+            fi
+            # Other Linux and BSD: needs a graphical session.
+            [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] || { echo unavailable; return; }
+            if command -v zenity >/dev/null 2>&1; then
+                # An extra button prints its label and exits 1, like Deny does.
+                local clicked
+                clicked="$(zenity --question --no-markup --title="$title" --text="$message" \
+                    --ok-label=Allow --cancel-label=Deny --extra-button=Defer --default-cancel \
+                    --timeout="$DIALOG_SECONDS" 2>/dev/null)" || status=$?
+                case "$status:$clicked" in
+                    0:*) result=allow ;; 1:Defer) result=defer ;; 1:*) result=deny ;;
+                    5:*) result=timeout ;; *) result=unavailable ;;
+                esac
+            elif command -v kdialog >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1; then
+                timeout "$DIALOG_SECONDS" kdialog --title "$title" --warningyesnocancel "$message" \
+                    --yes-label Allow --no-label Deny --cancel-label Defer >/dev/null 2>&1 || status=$?
+                case "$status" in 0) result=allow ;; 1) result=deny ;; 2) result=defer ;; 124) result=timeout ;; *) result=unavailable ;; esac
+            else
+                result=unavailable
+            fi
+            ;;
+    esac
+    case "$result" in allow | deny | defer | timeout) echo "$result" ;; *) echo unavailable ;; esac
+}
+
+# Windows (Git Bash, MSYS, Cygwin, or Windows Subsystem for Linux): a
+# WScript.Shell popup, which has a built-in timeout. The text travels in
+# environment variables to avoid quoting problems (WSLENV forwards them from WSL).
+windows_popup() {  # $1 = message, $2 = title
+    command -v powershell.exe >/dev/null 2>&1 || { echo unavailable; return; }
+    local result
+    # Popup type 3 = Yes/No/Cancel buttons (its labels can't be changed),
+    # 48 = warning icon, 256 = "No" is the default. It returns 6 for Yes, 7 for
+    # No, 2 for Cancel, -1 when it times out.
+    result="$(GATE_MESSAGE="$1" GATE_TITLE="$2" GATE_SECONDS="$DIALOG_SECONDS" \
+        WSLENV="${WSLENV:+$WSLENV:}GATE_MESSAGE:GATE_TITLE:GATE_SECONDS" \
+        powershell.exe -NoProfile -NonInteractive -Command '
+            $answer = (New-Object -ComObject WScript.Shell).Popup(
+                $env:GATE_MESSAGE + "`n`nYes = allow, No = deny, Cancel = defer.",
+                [int]$env:GATE_SECONDS, $env:GATE_TITLE, 3 + 48 + 256)
+            switch ($answer) { 6 { "allow" } 7 { "deny" } 2 { "defer" } -1 { "timeout" } default { "deny" } }' \
+        2>/dev/null | tr -d '\r')" || result=unavailable
+    case "$result" in allow | deny | defer | timeout) echo "$result" ;; *) echo unavailable ;; esac
+}
+
+# Pushes that need a human's confirmation. Headless runs (a launcher exports
+# CLAUDE_HEADLESS=1, e.g. the tidy-repos cron run.sh, or a push is prefixed with
+# CLAUDE_HEADLESS=1) are denied outright. Otherwise the user is asked in a
+# desktop dialog; no answer within DIALOG_SECONDS, or no way to show a dialog at
+# all (for example over SSH), means deny -- so an unattended agent is never left
+# hanging on a prompt nobody will answer. "Defer" in the dialog falls back to
+# Claude Code's own prompt, which then waits as long as it takes.
+ask_or_deny() {  # $1 = question (shown to the user), $2 = headless deny reason (shown to the agent)
+    if [ "${CLAUDE_HEADLESS:-}" = "1" ] || [ "$any_headless" = "1" ]; then emit deny "$2"; fi
+    case "$(confirm_in_dialog "$1")" in
+        allow)   emit allow "The user approved this push in the confirmation dialog." ;;
+        defer)   emit ask "$1" ;;
+        deny)    emit deny "The user declined this push in the confirmation dialog. Do not retry it." ;;
+        timeout) emit deny "Nobody answered the push confirmation dialog within $DIALOG_SECONDS seconds, so the push was blocked. Do not retry it; tell the user it still needs pushing." ;;
+        *)       emit deny "No desktop dialog could be shown to confirm this push (for example over SSH), so it was blocked. Do not retry it; ask the user to run the push themselves." ;;
+    esac
 }
 
 # Push to main/master/prod, in any refspec form, compound or not.
