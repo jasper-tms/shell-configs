@@ -6,6 +6,7 @@
 #   - push to main/master/prod  ->  confirm with the user; deny when headless
 #   - forced push               ->  confirm with the user; deny when headless
 #   - push target unresolvable  ->  confirm with the user; deny when headless
+#     (see below for how "confirm with the user" works)
 #   - not a git push at all      ->  stay silent, let the normal flow proceed
 #
 # "Headless" means a launcher exported CLAUDE_HEADLESS=1 (e.g. the tidy-repos
@@ -18,8 +19,10 @@
 # Linux with zenity or kdialog, Windows), not Claude Code's own "ask" prompt:
 # that prompt waits forever in a local terminal and hangs an unattended agent.
 # The dialog is denied after GATE_GIT_PUSH_DIALOG_SECONDS (default 120) without
-# an answer, and when no dialog can be shown (for example over SSH) the push is
-# denied straight away.
+# an answer. When no dialog can be shown (for example over SSH), the hook falls
+# back to Claude Code's own prompt: unattended launchers all set
+# CLAUDE_HEADLESS=1 and are denied before reaching this point, so a session
+# without it is assumed to have a person who can answer.
 #
 # A push with no refspec (bare `git push`, or `git push <remote>`) has an
 # implicit target, so the hook asks git itself what would be pushed: it resolves
@@ -301,10 +304,10 @@ windows_popup() {  # $1 = message, $2 = title
 # Pushes that need a human's confirmation. Headless runs (a launcher exports
 # CLAUDE_HEADLESS=1, e.g. the tidy-repos cron run.sh, or a push is prefixed with
 # CLAUDE_HEADLESS=1) are denied outright. Otherwise the user is asked in a
-# desktop dialog; no answer within DIALOG_SECONDS, or no way to show a dialog at
-# all (for example over SSH), means deny -- so an unattended agent is never left
-# hanging on a prompt nobody will answer. "Defer" in the dialog falls back to
-# Claude Code's own prompt, which then waits as long as it takes.
+# desktop dialog; no answer within DIALOG_SECONDS means deny. When no dialog can
+# be shown at all (for example over SSH), or the user clicks "Defer", the
+# decision falls back to Claude Code's own prompt, which waits as long as it
+# takes -- fine here, because unattended runs are headless and were denied above.
 ask_or_deny() {  # $1 = question (shown to the user), $2 = headless deny reason (shown to the agent)
     if [ "${CLAUDE_HEADLESS:-}" = "1" ] || [ "$any_headless" = "1" ]; then emit deny "$2"; fi
     case "$(confirm_in_dialog "$1")" in
@@ -312,7 +315,7 @@ ask_or_deny() {  # $1 = question (shown to the user), $2 = headless deny reason 
         defer)   emit ask "$1" ;;
         deny)    emit deny "The user declined this push in the confirmation dialog. Do not retry it." ;;
         timeout) emit deny "Nobody answered the push confirmation dialog within $DIALOG_SECONDS seconds, so the push was blocked. Do not retry it; tell the user it still needs pushing." ;;
-        *)       emit deny "No desktop dialog could be shown to confirm this push (for example over SSH), so it was blocked. Do not retry it; ask the user to run the push themselves." ;;
+        *)       emit ask "$1" ;;
     esac
 }
 
