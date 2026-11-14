@@ -97,9 +97,9 @@ function rmdir {
 }
 
 function exit {
-    if [ -z "${STY:-}" ]; then
-        # If not in a 'screen', exit normally
-        builtin exit
+    if [ -z "${STY:-}" ] || [ ! -t 0 ]; then
+        # Not in a 'screen', or not typed at a terminal (e.g. a script or agent): exit normally
+        builtin exit "$@"
     else
         if ${IS_ZSH:=false}; then
             read "input?WARNING: You are in a screen. Press enter to detatch, or type 'exit' again to exit: "
@@ -112,7 +112,7 @@ function exit {
         fi
 
         if [ "$input" = "exit" ]; then
-            builtin exit
+            builtin exit "$@"
         elif [ -z "$input" ]; then
             screen -d $STY
         else
