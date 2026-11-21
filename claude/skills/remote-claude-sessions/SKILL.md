@@ -24,12 +24,21 @@ via the Bash tool. The script:
 - Passes `--permission-mode auto` so the new session starts in Auto Mode.
 - Defaults the initial prompt to "Wait for further instructions".
 
-Pass an initial prompt as arg 1; override the work dir with `CLAUDE_WORK_DIR`:
+Pass an initial prompt and/or a working directory as positional arguments. The
+first or last positional that is an existing directory becomes the working
+directory and the other is the prompt, so `. "their prompt"` and
+`"their prompt" .` both work. `--dir` and `CLAUDE_WORK_DIR` also set the
+working directory.
+
+The script is also on the `PATH` as `new-remote-claude` (a tracked symlink in
+`shell-configs/shell_scripts/`), so Jasper can run it from any folder:
 
 ```
+new-remote-claude                      # default working directory
+new-remote-claude .                    # current folder
+new-remote-claude ~/repos/scoreTec/tasks "their prompt"
 ~/.claude/skills/remote-claude-sessions/launch-new-claude-remote-control.sh "their prompt"
 CLAUDE_WORK_DIR=/path/to/project ~/.claude/skills/remote-claude-sessions/launch-new-claude-remote-control.sh
-CLAUDE_WORK_DIR=/path/to/project ~/.claude/skills/remote-claude-sessions/launch-new-claude-remote-control.sh "their prompt"
 ```
 
 To continue an earlier conversation instead of starting fresh, pass

@@ -3,7 +3,10 @@
 # inside a detached GNU screen so it keeps running after this shell exits.
 #
 # Working directory:
-#   --dir <path>, else $CLAUDE_WORK_DIR, else <claude config dir>/remote-sessions/
+#   --dir <path>, else a positional argument that is an existing directory
+#   (the first or last positional; the other one is the initial prompt, so
+#   `. "some prompt"` and `"some prompt" .` both work), else $CLAUDE_WORK_DIR,
+#   else <claude config dir>/remote-sessions/
 #   Created if missing. Workspace trust is pre-accepted for this directory
 #   in the Claude config dir's .claude.json so the trust prompt never appears.
 #   See the claude-home resolution block below for how that dir is located.
@@ -87,6 +90,8 @@
 #   ./launch-new-claude-remote-control.sh "Wait for further instructions"
 #   ./launch-new-claude-remote-control.sh --model fable "/developer Run a loop"
 #   ./launch-new-claude-remote-control.sh -m fable -d ~/repos/jasper-tms/swiss-table-tennis-chat
+#   ./launch-new-claude-remote-control.sh . "Wait for further instructions"
+#   ./launch-new-claude-remote-control.sh "Fix the failing test" ~/repos/jasper-tms/npimage
 #   ./launch-new-claude-remote-control.sh --tui fullscreen
 #   ./launch-new-claude-remote-control.sh -d ~/repos/scoreTec/tasks --continue
 #   ./launch-new-claude-remote-control.sh --resume <session-id>
@@ -116,8 +121,10 @@ SESSION_ID=""
 FORK_SESSION=0
 SETTINGS=""
 ADD_DIRS=()
+POSITIONALS=()
 
-# --- Parse options (order-independent flags plus one positional prompt) ---
+# --- Parse options (order-independent flags plus up to two positionals: a
+# directory and/or a prompt, sorted out after the loop) ---
 while [ $# -gt 0 ]; do
     case "$1" in
         -m|--model)  MODEL_INPUT="${2:-}"; shift 2 ;;
@@ -155,11 +162,44 @@ while [ $# -gt 0 ]; do
         -p|--prompt) PROMPT="${2:-}"; PROMPT_SET=1; shift 2 ;;
         -h|--help)   usage; exit 0 ;;
         --)          shift
-                     if [ $# -gt 0 ]; then PROMPT="$1"; PROMPT_SET=1; shift; fi ;;
+                     POSITIONALS+=( "$@" ); set -- ;;
         -*)          echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
-        *)           PROMPT="$1"; PROMPT_SET=1; shift ;;
+        *)           POSITIONALS+=( "$1" ); shift ;;
     esac
 done
+
+# --- Sort positionals into a working directory and/or an initial prompt ---
+# The first or last positional may be an existing directory; the other one (if
+# any) is the prompt. A lone positional is a directory if one exists by that
+# name, else it is the prompt. --prompt and --dir count as already supplying
+# their half, so an extra positional then has to be the other half.
+POSITIONAL_DIR=""
+case "${#POSITIONALS[@]}" in
+    0) ;;
+    1) if [ -d "${POSITIONALS[0]}" ] && [ -z "$DIR_OVERRIDE" ]; then
+           POSITIONAL_DIR="${POSITIONALS[0]}"
+       elif [ "$PROMPT_SET" -eq 0 ]; then
+           PROMPT="${POSITIONALS[0]}"; PROMPT_SET=1
+       else
+           echo "Unexpected extra argument: ${POSITIONALS[0]}" >&2; exit 2
+       fi ;;
+    2) if [ -n "$DIR_OVERRIDE" ] || [ "$PROMPT_SET" -eq 1 ]; then
+           echo "Too many positional arguments (--dir/--prompt already given): ${POSITIONALS[*]}" >&2
+           exit 2
+       elif [ -d "${POSITIONALS[0]}" ]; then
+           POSITIONAL_DIR="${POSITIONALS[0]}"; PROMPT="${POSITIONALS[1]}"; PROMPT_SET=1
+       elif [ -d "${POSITIONALS[1]}" ]; then
+           POSITIONAL_DIR="${POSITIONALS[1]}"; PROMPT="${POSITIONALS[0]}"; PROMPT_SET=1
+       else
+           echo "Two positional arguments given but neither is an existing directory: ${POSITIONALS[*]}" >&2
+           exit 2
+       fi ;;
+    *) echo "Too many positional arguments (expected at most a directory and a prompt): ${POSITIONALS[*]}" >&2
+       exit 2 ;;
+esac
+if [ -n "$POSITIONAL_DIR" ]; then
+    DIR_OVERRIDE="$POSITIONAL_DIR"
+fi
 
 if [ "$CONTINUE" -eq 1 ] && [ -n "$RESUME_VALUE" ]; then
     echo "--continue and --resume are mutually exclusive" >&2
